@@ -185,6 +185,30 @@ namespace VCX::Labs::Drawing2D {
         glm::ivec2 const p0,
         glm::ivec2 const p1) {
         // your code here:
+        glm::ivec2 a = p0, b = p1;
+        bool swapXY = abs(a.x-b.x) < abs(a.y-b.y);
+        if (swapXY) {
+            std::swap(a.x, a.y);
+            std::swap(b.x, b.y);
+        }
+        if (a.x > b.x) std::swap(a, b);
+        bool flipY = a.y > b.y;
+        if (flipY) {
+            a.y = -a.y;
+            b.y = -b.y;
+        }
+        std::size_t y = a.y;
+        int dx = 2*(b.x-a.x), dy = 2*(b.y-a.y);
+        int dydx = dy-dx, F = dy-dx/2;
+        for (std::size_t x = a.x; x<=b.x; ++x){
+            std::size_t px = x, py = y;
+            if (flipY) py = -py;
+            if (swapXY) std::swap(px, py);
+            canvas.SetAt({px, py}, color);
+
+            if (F<0) F+=dy;
+            else ++y, F += dydx;
+        }
     }
 
     /******************* 5. Triangle Drawing *****************/

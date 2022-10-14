@@ -25,26 +25,75 @@ namespace VCX::Labs::Drawing2D {
     void DitheringRandomUniform(
         ImageRGB &       output,
         ImageRGB const & input) {
-        // your code here:
+        std::mt19937 rng(0);
+        std::uniform_real_distribution<float> d(-0.5, 0.5);
+        for (std::size_t x = 0; x < input.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < input.GetSizeY(); ++y) {
+                glm::vec3 color = input[{ x, y }];
+                float noise = d(rng);
+                output.SetAt({ x, y }, {
+                                           color.r + noise > 0.5 ? 1 : 0,
+                                           color.g + noise> 0.5 ? 1 : 0,
+                                           color.b + noise> 0.5 ? 1 : 0,
+                                       });
+            }
     }
 
     void DitheringRandomBlueNoise(
         ImageRGB &       output,
         ImageRGB const & input,
         ImageRGB const & noise) {
-        // your code here:
+        for (std::size_t x = 0; x < input.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < input.GetSizeY(); ++y) {
+                glm::vec3 color = input[{ x, y }];
+                glm::vec3 colorN = noise[{ x, y }];
+                output.SetAt({ x, y }, {
+                                           color.r + colorN.r > 1 ? 1 : 0,
+                                           color.g + colorN.g > 1 ? 1 : 0,
+                                           color.b + colorN.b > 1 ? 1 : 0,
+                                       });
+            }
     }
 
     void DitheringOrdered(
         ImageRGB &       output,
         ImageRGB const & input) {
-        // your code here:
+        const int order[][2] = {{1, 1}, {1, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 0}, {0, 0}, {2, 2}, {0, 1}};
+        for (std::size_t x = 0; x < input.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < input.GetSizeY(); ++y) {
+                glm::vec3 color = input[{ x, y }];
+                for(std::size_t i = 0; i < 9; ++i)
+                    output.SetAt({ x*3 + order[i][0], y*3 + order[i][1] }, {
+                                           color.r >= i/9. ? 1 : 0,
+                                           color.g >= i/9. ? 1 : 0,
+                                           color.b >= i/9. ? 1 : 0,
+                                       });
+            }
     }
 
     void DitheringErrorDiffuse(
         ImageRGB &       output,
         ImageRGB const & input) {
-        // your code here:
+        output = input;
+        for (std::size_t x = 0; x < input.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < input.GetSizeY(); ++y) {
+                glm::vec3 color = output[{ x, y }];
+                if (color.r > 0.5){
+                    output.SetAt({ x, y }, { 1, 1, 1 });
+                    color.r -= 1;
+                }
+                else{
+                    output.SetAt({ x, y }, { 0, 0, 0 });
+                }
+                if (y + 1 < input.GetSizeY())
+                    output.SetAt({ x, y+1 }, { output[{ x, y+1 }].r + color.r * 7 / 16, 0, 0 });
+                if (x + 1 < input.GetSizeX())
+                    output.SetAt({ x+1, y }, { output[{ x+1, y }].r + color.r * 5 / 16, 0, 0 });
+                if (x + 1 < input.GetSizeX() && y + 1 < input.GetSizeY())
+                    output.SetAt({ x+1, y+1 }, { output[{ x+1, y+1 }].r + color.r * 1 / 16, 0, 0 });
+                if (x + 1 < input.GetSizeX() && y > 0)
+                    output.SetAt({ x+1, y-1 }, { output[{ x+1, y-1 }].r + color.r * 3 / 16, 0, 0 });
+            }
     }
 
     /******************* 2.Image Filtering *****************/

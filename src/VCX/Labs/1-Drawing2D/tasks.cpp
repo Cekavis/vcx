@@ -150,11 +150,15 @@ namespace VCX::Labs::Drawing2D {
         // set boundary condition
         for (std::size_t y = 0; y < height; ++y) {
             // set boundary for (0, y), your code: g[y * width] = ?
+            g[y * width] = inputBack.GetAt({(std::size_t)offset.x, offset.y + y}) - inputFront.GetAt({0, y});
             // set boundary for (width - 1, y), your code: g[y * width + width - 1] = ?
+            g[y * width + width - 1] = inputBack.GetAt({offset.x + width - 1, offset.y + y}) - inputFront.GetAt({width - 1, y});
         }
         for (std::size_t x = 0; x < width; ++x) {
             // set boundary for (x, 0), your code: g[x] = ?
+            g[x] = inputBack.GetAt({offset.x + x, (std::size_t)offset.y}) - inputFront.GetAt({x, 0});
             // set boundary for (x, height - 1), your code: g[(height - 1) * width + x] = ?
+            g[(height - 1) * width + x] = inputBack.GetAt({offset.x + x, offset.y + height - 1}) - inputFront.GetAt({x, height - 1});
         }
 
         // Jacobi iteration, solve Ag = b

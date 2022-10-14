@@ -33,8 +33,8 @@ namespace VCX::Labs::Drawing2D {
                 float noise = d(rng);
                 output.SetAt({ x, y }, {
                                            color.r + noise > 0.5 ? 1 : 0,
-                                           color.g + noise> 0.5 ? 1 : 0,
-                                           color.b + noise> 0.5 ? 1 : 0,
+                                           color.g + noise > 0.5 ? 1 : 0,
+                                           color.b + noise > 0.5 ? 1 : 0,
                                        });
             }
     }

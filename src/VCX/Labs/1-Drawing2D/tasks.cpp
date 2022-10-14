@@ -86,13 +86,13 @@ namespace VCX::Labs::Drawing2D {
                     output.SetAt({ x, y }, { 0, 0, 0 });
                 }
                 if (y + 1 < input.GetSizeY())
-                    output.SetAt({ x, y+1 }, { output[{ x, y+1 }].r + color.r * 7 / 16, 0, 0 });
+                    output.SetAt({ x, y+1 }, output[{ x, y+1 }] + color * 7.0f / 16.0f);
                 if (x + 1 < input.GetSizeX())
-                    output.SetAt({ x+1, y }, { output[{ x+1, y }].r + color.r * 5 / 16, 0, 0 });
+                    output.SetAt({ x+1, y }, output[{ x+1, y }] + color * 5.0f / 16.0f);
                 if (x + 1 < input.GetSizeX() && y + 1 < input.GetSizeY())
-                    output.SetAt({ x+1, y+1 }, { output[{ x+1, y+1 }].r + color.r * 1 / 16, 0, 0 });
+                    output.SetAt({ x+1, y+1 }, output[{ x+1, y+1 }] + color * 1.0f / 16.0f);
                 if (x + 1 < input.GetSizeX() && y > 0)
-                    output.SetAt({ x+1, y-1 }, { output[{ x+1, y-1 }].r + color.r * 3 / 16, 0, 0 });
+                    output.SetAt({ x+1, y-1 }, output[{ x+1, y-1 }] + color * 3.0f / 16.0f);
             }
     }
 

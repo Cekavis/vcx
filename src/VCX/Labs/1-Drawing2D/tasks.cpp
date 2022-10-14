@@ -100,11 +100,12 @@ namespace VCX::Labs::Drawing2D {
     void Blur(
         ImageRGB &       output,
         ImageRGB const & input) {
-        for (std::size_t x = 0; x < input.GetSizeX()-2; ++x)
-            for (std::size_t y = 0; y < input.GetSizeY()-2; ++y) {
+        for (std::size_t x = 0; x < output.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < output.GetSizeY(); ++y) {
                 glm::vec3 color = {0, 0, 0};
-                for (std::size_t i = 0; i < 3; ++i)
-                        for (std::size_t j = 0; j < 3; ++j)
+                for (std::size_t i = -1; i != 2; ++i)
+                        for (std::size_t j = -1; j != 2; ++j)
+                            if (x+i<input.GetSizeX() && y+j<input.GetSizeY())
                                 color += input[{ x+i, y+j }];
                 color /= 9;
                 output.SetAt({ x, y }, color);
@@ -124,14 +125,15 @@ namespace VCX::Labs::Drawing2D {
             { 2., 0, -2. },
             { 1., 0, -1. }
         };
-        for (std::size_t x = 0; x < input.GetSizeX()-2; ++x)
-            for (std::size_t y = 0; y < input.GetSizeY()-2; ++y) {
+        for (std::size_t x = 0; x < output.GetSizeX(); ++x)
+            for (std::size_t y = 0; y < output.GetSizeY(); ++y) {
                 glm::vec3 gx = {0, 0, 0}, gy = gx;
-                for (std::size_t i = 0; i < 3; ++i)
-                        for (std::size_t j = 0; j < 3; ++j){
-                            gx += input[{ x+i, y+j }] * filter1[i][j];
-                            gy += input[{ x+i, y+j }] * filter2[i][j];
-                        }
+                for (std::size_t i = -1; i != 2; ++i)
+                        for (std::size_t j = -1; j != 2; ++j)
+                            if (x+i<input.GetSizeX() && y+j<input.GetSizeY()){
+                                gx += input[{ x+i, y+j }] * filter1[i+1][j+1];
+                                gy += input[{ x+i, y+j }] * filter2[i+1][j+1];
+                            }
                 output.SetAt({ x, y }, glm::sqrt(gx * gx + gy * gy));
             }
     }

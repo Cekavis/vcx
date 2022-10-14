@@ -219,6 +219,26 @@ namespace VCX::Labs::Drawing2D {
         glm::ivec2 const p1,
         glm::ivec2 const p2) {
         // your code here:
+        glm::ivec2 a = p0, b = p1, c = p2;
+        if (a.x > b.x) std::swap(a, b);
+        if (a.x > c.x) std::swap(a, c);
+        if ((b.x-a.x)*(c.y-a.y) < (c.x-a.x)*(b.y-a.y)) std::swap(b, c);
+        for (int x = a.x; x <= b.x || x <= c.x; ++x){
+            int yl, yr;
+            if (x <= b.x) {
+                if (b.x == a.x) yl = std::min(a.y, b.y);
+                else yl = (a.y*(b.x-a.x) + (b.y-a.y)*(x-a.x) + b.x-a.x-1) / (b.x-a.x); // ceil
+            }
+            else yl = (b.y*(c.x-b.x) + (c.y-b.y)*(x-b.x) + c.x-b.x-1) / (c.x-b.x); // ceil
+            if (x <= c.x) {
+                if (c.x == a.x) yr = std::max(a.y, c.y);
+                else yr = (a.y*(c.x-a.x) + (c.y-a.y)*(x-a.x)) / (c.x-a.x); // floor
+            }
+            else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x);
+            for (std::size_t y = yl; y<=yr; ++y)
+                if (0<=x && x < canvas.GetSizeX() && y < canvas.GetSizeY())
+                    canvas.SetAt({ (std::size_t)x, y }, color);
+        }
     }
 
     /******************* 6. Image Supersampling *****************/

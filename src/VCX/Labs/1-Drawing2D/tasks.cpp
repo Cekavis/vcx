@@ -100,13 +100,40 @@ namespace VCX::Labs::Drawing2D {
     void Blur(
         ImageRGB &       output,
         ImageRGB const & input) {
-        // your code here:
+        for (std::size_t x = 0; x < input.GetSizeX()-2; ++x)
+            for (std::size_t y = 0; y < input.GetSizeY()-2; ++y) {
+                glm::vec3 color = {0, 0, 0};
+                for (std::size_t i = 0; i < 3; ++i)
+                        for (std::size_t j = 0; j < 3; ++j)
+                                color += input[{ x+i, y+j }];
+                color /= 9;
+                output.SetAt({ x, y }, color);
+            }
     }
 
     void Edge(
         ImageRGB &       output,
         ImageRGB const & input) {
-        // your code here:
+        const float filter1[3][3] = {
+            { 1., 2., 1. },
+            { 0, 0, 0 },
+            { -1., -2., -1. }
+        };
+        const float filter2[3][3] = {
+            { 1., 0, -1. },
+            { 2., 0, -2. },
+            { 1., 0, -1. }
+        };
+        for (std::size_t x = 0; x < input.GetSizeX()-2; ++x)
+            for (std::size_t y = 0; y < input.GetSizeY()-2; ++y) {
+                glm::vec3 gx = {0, 0, 0}, gy = gx;
+                for (std::size_t i = 0; i < 3; ++i)
+                        for (std::size_t j = 0; j < 3; ++j){
+                            gx += input[{ x+i, y+j }] * filter1[i][j];
+                            gy += input[{ x+i, y+j }] * filter2[i][j];
+                        }
+                output.SetAt({ x, y }, glm::sqrt(gx * gx + gy * gy));
+            }
     }
 
     /******************* 3. Image Inpainting *****************/

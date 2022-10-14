@@ -236,7 +236,7 @@ namespace VCX::Labs::Drawing2D {
                 if (c.x == a.x) yr = std::max(a.y, c.y);
                 else yr = (a.y*(c.x-a.x) + (c.y-a.y)*(x-a.x)) / (c.x-a.x); // floor
             }
-            else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x);
+            else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x); // floor
             for (std::size_t y = yl; y<=yr; ++y)
                 if (0<=x && x < canvas.GetSizeX() && y < canvas.GetSizeY())
                     canvas.SetAt({ (std::size_t)x, y }, color);

@@ -247,6 +247,20 @@ namespace VCX::Labs::Drawing2D {
         ImageRGB const & input,
         int              rate) {
         // your code here:
+        int ix = input.GetSizeX(), iy = input.GetSizeY();
+        int ox = output.GetSizeX(), oy = output.GetSizeY();
+        for(int i=0; i<ox; ++i) for(int j=0; j<oy; ++j){
+            int x = i*ix/ox, y = j*iy/oy;
+            glm::vec3 color = {0, 0, 0};
+            int cnt = 0;
+            for(int tx=0; tx<rate; ++tx) for(int ty=0; ty<rate; ++ty)
+                if (x+tx<ix && y+ty<iy){
+                    color += input.GetAt({ (std::size_t)x+tx, (std::size_t)y+ty });
+                    ++cnt;
+                }
+            color /= cnt;
+            output.SetAt({ (std::size_t)i, (std::size_t)j }, color);
+        }
     }
 
     /******************* 7. Bezier Curve *****************/

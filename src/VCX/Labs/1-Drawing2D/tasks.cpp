@@ -268,6 +268,11 @@ namespace VCX::Labs::Drawing2D {
         std::span<glm::vec2> points,
         float const          t) {
         // your code here:
-        return glm::vec2 {0, 0};
+        if (points.size() == 1)
+            return points[0];
+        std::vector<glm::vec2> p;
+        for (std::size_t i = 0; i < points.size() - 1; ++i)
+            p.push_back(points[i]*(1-t) + points[i+1]*t);
+        return CalculateBezierPoint(p, t);
     }
 } // namespace VCX::Labs::Drawing2D

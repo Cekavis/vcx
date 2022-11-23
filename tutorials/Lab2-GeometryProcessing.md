@@ -97,7 +97,7 @@ $$unit(\text{j >> 2})$$
 
 其中 $unit()$ 表示第几个方向的基矢，$unit(0) = (1, 0, 0)$，$unit(1) = (0, 1, 0)$，$unit(2) = (0, 0, 1)$。第 $j$ 条边的起始点为 
 
-$$v_0 + dx \cdot (\text{i \& 1}) \cdot unit(\text{((j >> 2) + 1) \% 3}) + dx \cdot (\text{i >> 1 \& 1}) \cdot unit(\text{((j >> 2) + 2) \% 3})$$
+$$v_0 + dx \cdot (\text{j \& 1}) \cdot unit(\text{((j >> 2) + 1) \% 3}) + dx \cdot (\text{j >> 1 \& 1}) \cdot unit(\text{((j >> 2) + 2) \% 3})$$
 
 这个顺序与表中的顺序对应，比如查询`c_EdgeStateTable`时，`uint32_t e = c_EdgeStateTable[v];` 中 `v` 的第 i 位记录了第 i 个顶点的信息，`e` 的第 j 位记录了第 j 条边的信息。
 

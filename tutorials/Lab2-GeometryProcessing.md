@@ -143,9 +143,11 @@ namespace VCX::Labs::GeometryProcessing {
 对于 `DCEL links` ：
 + `AddFaces(faces)` ：使用网格的面索引初始化
 + `links.GetVertex(idx)` ：根据顶点的索引获取相应的 `Vertex` 数据结构以便进一步查询（这些索引与初始化时绑定的面索引一一对应）
-+ `links.GetFaces()` ：获取所有的面（ `Triangle const *` ），以便进一步查询（这些面的顺序与初始化时传入的一致）
-+ `links.GetEdges()` ：获取所有的边（ `HalfEdge const *` ），以便进一步查询
++ `links.GetFaces()` ：获取所有的面（ `std::vector<Triangle>` ），以便进一步查询（这些面的顺序与初始化时传入的一致）
++ `links.GetEdges()` ：获取所有的边（ `std::vector<HalfEdge const *>` ），以便进一步查询
 + `links.IndexOf(face)` ：获取某个面（ `Triangle const *` ）在所有面中的顺序（从0开始计数）
+
+（注：对于 `links.GetFaces()` ，返回的数据结构是常量引用，不能直接迭代遍历。推荐采用 `for (auto const &f : links.GetFaces())` 方式遍历。）
 
 对于 `DCEL::Vertex v` ：
 + `v.IsSide()` ：是否是边界上的点
@@ -155,7 +157,7 @@ namespace VCX::Labs::GeometryProcessing {
 + `v.GetFaces()` ：返回所有相邻的面
 
 对于 `DCEL::Triangle const * f` ：
-+ `f->Indices(i)` ：返回第 `i` 个顶点的索引（`i`=0,1,2），这里的顶点顺序和初始化时传入的一致
++ `*f->Indices(i)` ：返回第 `i` 个顶点的索引（`i`=0,1,2），这里的顶点顺序和初始化时传入的一致
 + `f->Edges(i)` ：返回第 `i` 条边的半边结构（`i`=0,1,2），保证顶点 `i` 的对边就是边 `i`
 + `f->OppositeFace(i)` ：返回一个相邻的面，这个面与面 `f` 的共边就是边 `i`（请先检查这个面存在）
 + `f->HasOppositeFace(i)` ：检查一个相邻的面是否存在，这个面与面 `f` 的共边就是边 `i`

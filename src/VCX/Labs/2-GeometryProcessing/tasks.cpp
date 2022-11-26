@@ -141,9 +141,140 @@ namespace VCX::Labs::GeometryProcessing {
             assert(0<=uv[i].x && uv[i].x<=1 && 0<=uv[i].y && uv[i].y<=1);
     }
 
+    std::pair<float, glm::vec3> CalculateCost(glm::dmat4x4 Q, glm::vec3 p1, glm::vec3 p2){
+        auto P = Q;
+        P[3][0] = P[3][1] = P[3][2] = 0;
+        P[3][3] = 1;
+        if (glm::abs(glm::determinant(P)) < 1e-15){ // Not invertible
+            glm::dvec4 w1 = glm::dvec4(p1, 1);
+            glm::dvec4 w2 = glm::dvec4(p2, 1);
+            double co2 = glm::dot((w1 - w2), Q * (w1 - w2));
+            double co1 = glm::dot(w1, Q * w2) * 2;
+            if (abs(co2) < 1e-15) { // Linear function
+                if (co1 > 0)
+                    return {glm::dot(w2, Q * w2), p2};
+                else
+                    return {glm::dot(w1, Q * w1), p1};
+            }
+            else { // Quadratic function
+                double t = -co1 / (2 * co2);
+                if (t < 0)
+                    return {glm::dot(w2, Q * w2), p2};
+                else if (t > 1)
+                    return {glm::dot(w1, Q * w1), p1};
+                else
+                    return {glm::dot(w1 * t + w2 * (1- t), Q * (w1 * t + w2 * (1- t))), p1 * (float)t + p2 * (1 - (float)t)};
+            }
+        }
+        else{
+            P = glm::inverse(P);
+            glm::dvec4 p = glm::dvec4(0, 0, 0, 1) * P;
+            // fprintf(stderr, "-------------\n");
+            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[0][0], P[0][1], P[0][2], P[0][3]);
+            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[1][0], P[1][1], P[1][2], P[1][3]);
+            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[2][0], P[2][1], P[2][2], P[2][3]);
+            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[3][0], P[3][1], P[3][2], P[3][3]);
+            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", p.x, p.y, p.z, p.w);
+            float cost = glm::dot(p, Q * p);
+            return std::make_pair(cost, glm::vec3(p));
+        }
+    }
+
     /******************* 3. Mesh Simplification *****************/
     void SimplifyMesh(Engine::SurfaceMesh const & input, Engine::SurfaceMesh & output, float valid_pair_threshold, float simplification_ratio) {
-        // your code here
+        // std::cerr << simplification_ratio << ' ' << valid_pair_threshold << std::endl;
+
+        /* Build DCEL */
+        DCEL links;
+        links.AddFaces(input.Indices);
+        if (!links.IsValid()){
+            std::cerr << "Invalid mesh" << std::endl;
+            return;
+        }
+
+        /* Calculate Q for initial vertices */
+        int n = input.Positions.size();
+        auto pos = input.Positions;
+        std::vector<glm::dmat4x4> Q(n, glm::dmat4x4(0));
+        for (int i = 0; i < n; ++i){
+            for (auto f: links.GetVertex(i).GetFaces()){
+                glm::vec3 normal = glm::cross(pos[*f->Indices(1)] - pos[*f->Indices(0)], pos[*f->Indices(2)] - pos[*f->Indices(0)]);
+                normal = glm::normalize(normal);
+                glm::vec4 p = glm::vec4(normal, -glm::dot(normal, pos[i]));
+                Q[i] += glm::outerProduct(p, p);
+            }
+        }
+
+        /* Find all valid pairs */
+        std::vector<std::pair<float, std::pair<int, int>>> pairs;
+        for (int i = 0; i < n; ++i) {
+            auto neighbors = links.GetVertex(i).GetNeighbors();
+            std::sort(neighbors.begin(), neighbors.end());
+            int k = 0;
+            for (int j = 0; j < i; ++j) {
+                while (k < neighbors.size() && neighbors[k] < j)
+                    ++k;
+                if (k < neighbors.size() && neighbors[k] == j || glm::length(pos[i] - pos[j]) < valid_pair_threshold){
+                    auto [cost, p] = CalculateCost(Q[i]+Q[j], pos[i], pos[j]);
+                    pairs.push_back(std::make_pair(cost, std::make_pair(i, j)));
+                }
+            }
+        }
+
+        /* Build disjoint set union */
+        std::vector<int> fa(n);
+        for (int i = 0; i < n; ++i) fa[i] = i;
+        std::function<int(int)> find = [&](int x){
+            if (fa[x] == x) return x;
+            return fa[x] = find(fa[x]);
+        };
+
+        /* Delete pairs until simplification_ratio reached */
+        int deleteNum = ceil(n * (1 - simplification_ratio));
+        while (deleteNum--){
+            // std::cerr << deleteNum << ' ' << pairs.size() << std::endl;
+            if (pairs.empty()){
+                std::cerr << "No valid pair" << std::endl;
+                break;
+            }
+            auto pair = std::min_element(pairs.begin(), pairs.end())->second;
+            int x = pair.first, y = pair.second;
+            assert(x == find(x) && y == find(y));
+            Q[x] += Q[y];
+            fa[y] = x;
+            // std::cerr << pos[x].x << ' ' << pos[x].y << ' ' << pos[x].z << std::endl;
+            pos[x] = CalculateCost(Q[x], pos[x], pos[y]).second;
+            // std::cerr << pos[x].x << ' ' << pos[x].y << ' ' << pos[x].z << std::endl;
+            std::vector<std::pair<int, int>> newPairs;
+            for (auto [_, pair]: pairs){
+                int u = find(pair.first), v = find(pair.second);
+                if (u == v) continue;
+                newPairs.push_back(std::make_pair(u, v));
+            }
+            std::sort(newPairs.begin(), newPairs.end());
+            newPairs.erase(std::unique(newPairs.begin(), newPairs.end()), newPairs.end());
+            pairs.clear();
+            for (auto [u, v]: newPairs){
+                auto [cost, p] = CalculateCost(Q[u]+Q[v], pos[u], pos[v]);
+                pairs.push_back(std::make_pair(cost, std::make_pair(u, v)));
+            }
+        }
+
+        /* Rebuild structure after simplification */
+        std::vector<int> id(n), cnt(n);
+        output.Positions.clear();
+        for (int i = 0; i < n; ++i) if (find(i) == i) {
+            id[i] = output.Positions.size();
+            output.Positions.push_back(pos[i]);
+        }
+        for (auto const &f: links.GetFaces()){
+            uint32_t x = id[find(*f.Indices(0))], y = id[find(*f.Indices(1))], z = id[find(*f.Indices(2))];
+            if (x != y && x != z && y != z){
+                output.Indices.push_back(x);
+                output.Indices.push_back(y);
+                output.Indices.push_back(z);
+            }
+        }
     }
 
     /******************* 4. Mesh Smoothing *****************/

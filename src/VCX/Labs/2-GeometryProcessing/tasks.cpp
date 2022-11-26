@@ -318,8 +318,46 @@ namespace VCX::Labs::GeometryProcessing {
         }
     }
 
+    struct cmp_ivec4{
+        bool operator()(glm::ivec4 const &a, glm::ivec4 const &b) const {
+            if (a.x != b.x) return a.x < b.x;
+            if (a.y != b.y) return a.y < b.y;
+            if (a.z != b.z) return a.z < b.z;
+            return a.w < b.w;
+        }
+    };
+
     /******************* 5. Marching Cubes *****************/
     void MarchingCubes(Engine::SurfaceMesh & output, const std::function<float(const glm::vec3 &)> & sdf, const glm::vec3 & grid_min, const float dx, const int n) {
-        // your code here
+        std::map<glm::ivec4, int, cmp_ivec4> edgeId;
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j)
+                for (int k = 0; k < n; ++k){
+                    glm::vec3 p = grid_min + glm::vec3(i, j, k) * dx;
+                    int state = 0;
+                    for (int t = 0; t < 8; ++t){
+                        glm::vec3 v = p + glm::vec3(t&1, t>>1&1, t>>2&1) * dx;
+                        if (sdf(v) < 0) state |= 1 << t;
+                    }
+                    for (int t = 0; c_EdgeOrdsTable[state][t] != -1; t += 3){
+                        for (int o = 0; o < 3; ++o){
+                            int edge = c_EdgeOrdsTable[state][t+o];
+                            int dir = edge >> 2;
+                            glm::ivec4 key = glm::ivec4(dir, i, j, k);
+                            if (edge&1) key[(dir+1)%3+1] += 1;
+                            if (edge&2) key[(dir+2)%3+1] += 1;
+                            if (!edgeId.count(key)){
+                                edgeId[key] = output.Positions.size();
+                                glm::vec3 p1 = grid_min + glm::vec3(key[1], key[2], key[3]) * dx;
+                                glm::vec3 p2 = p1;
+                                p2[dir] += dx;
+                                output.Positions.push_back(p1 + (p2 - p1) * sdf(p1) / (sdf(p1) - sdf(p2)));
+                                // p1[dir] += dx / 2;
+                                // output.Positions.push_back(p1);
+                            }
+                            output.Indices.push_back(edgeId[key]);
+                        }
+                    }
+                }
     }
 } // namespace VCX::Labs::GeometryProcessing

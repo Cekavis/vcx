@@ -279,7 +279,43 @@ namespace VCX::Labs::GeometryProcessing {
 
     /******************* 4. Mesh Smoothing *****************/
     void SmoothMesh(Engine::SurfaceMesh const & input, Engine::SurfaceMesh & output, std::uint32_t numIterations, float lambda, bool useUniformWeight) {
-        // your code here
+        /* Build DCEL */
+        DCEL links;
+        links.AddFaces(input.Indices);
+        if (!links.IsValid()){
+            std::cerr << "Invalid mesh" << std::endl;
+            return;
+        }
+
+        output = input;
+        while (numIterations--){
+            /* Calculate new positions */
+            auto &pos = output.Positions;
+            std::vector<glm::vec3> newPos(pos.size());
+            for (int i = 0; i < pos.size(); ++i){
+                glm::vec3 sum(0);
+                float totalWeight = 0;
+                for (auto f: links.GetVertex(i).GetFaces()){
+                    int id = 0;
+                    while (*f->Indices(id) != i) ++id;
+                    int x = *f->Indices((id+1)%3);
+                    float weight;
+                    if (useUniformWeight){
+                        weight = 1;
+                    } else {
+                        int y = *f->Indices((id+2)%3);
+                        int z = f->OppositeVertex((id+2)%3);
+                        float alpha = glm::acos(glm::dot(pos[i] - pos[z], pos[x] - pos[z]) / glm::length(pos[i] - pos[z]) / glm::length(pos[x] - pos[z]));
+                        float beta = glm::acos(glm::dot(pos[i] - pos[y], pos[x] - pos[y]) / glm::length(pos[i] - pos[y]) / glm::length(pos[x] - pos[y]));
+                        weight = glm::cot(alpha) + glm::cot(beta);
+                    }
+                    sum += weight * pos[*f->Indices((id+1)%3)];
+                    totalWeight += weight;
+                }
+                newPos[i] = (1 - lambda) * pos[i] + lambda * sum / totalWeight;
+            }
+            pos = newPos;
+        }
     }
 
     /******************* 5. Marching Cubes *****************/

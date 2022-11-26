@@ -15,6 +15,10 @@ namespace VCX::Labs::GeometryProcessing {
 
 #include "Labs/2-GeometryProcessing/marching_cubes_table.h"
 
+    /*
+     * Helper function for task 1
+     * Converts a DCEL::HalfEdge to an unordered pair of vertex ids
+     */
     std::pair<uint32_t, uint32_t> edge2pair(DCEL::HalfEdge const *e) {
         return e->To() < e->From() ? std::make_pair(e->To(), e->From())
                                    : std::make_pair(e->From(), e->To());
@@ -22,8 +26,10 @@ namespace VCX::Labs::GeometryProcessing {
 
     /******************* 1. Mesh Subdivision *****************/
     void SubdivisionMesh(Engine::SurfaceMesh const & input, Engine::SurfaceMesh & output, std::uint32_t numIterations) {
-        Engine::SurfaceMesh mesh = input;
+        Engine::SurfaceMesh mesh = input; // temporary mesh
+        /* Subdivide mesh for 'numIterations' times */
         while(numIterations--) {
+            /* Build DCEL */
             DCEL links;
             links.AddFaces(mesh.Indices);
             if (!links.IsValid()){
@@ -34,7 +40,7 @@ namespace VCX::Labs::GeometryProcessing {
             output.Positions.clear();
             output.Indices.clear();
 
-            /* Calculate existed vertices */
+            /* Calculate new positions of existing vertices */
             for (std::size_t i = 0; i < mesh.Positions.size(); ++i) {
                 DCEL::Vertex v = links.GetVertex(i);
                 auto neighbors = v.GetNeighbors();
@@ -46,10 +52,11 @@ namespace VCX::Labs::GeometryProcessing {
                 output.Positions.push_back(p);
             }
 
-            std::map<std::pair<uint32_t, uint32_t>, int> edgeMap;
+            /* 'edgeId' maps an edge to vertex id in new mesh */
+            std::map<std::pair<uint32_t, uint32_t>, int> edgeId;
             int num = mesh.Positions.size();
 
-            /* Calculate new vertices */
+            /* Calculate positions of vertices derived from edges*/
             for (DCEL::HalfEdge const * e : links.GetEdges()){
                 glm::vec3 p = mesh.Positions[e->To()] + mesh.Positions[e->From()];
                 p = p * 3.0f;
@@ -61,19 +68,19 @@ namespace VCX::Labs::GeometryProcessing {
                     return;
                 }
                 output.Positions.push_back(p / 8.0f);
-                edgeMap[edge2pair(e)] = num++;
+                edgeId[edge2pair(e)] = num++;
             }
 
             /* Divide triangles */
             for (DCEL::Triangle const &t : links.GetFaces()) {
                 for (int i = 0; i < 3; ++i){
                     output.Indices.push_back(*t.Indices(i));
-                    output.Indices.push_back(edgeMap[edge2pair(t.Edges((i+2)%3))]);
-                    output.Indices.push_back(edgeMap[edge2pair(t.Edges((i+1)%3))]);
+                    output.Indices.push_back(edgeId[edge2pair(t.Edges((i+2)%3))]);
+                    output.Indices.push_back(edgeId[edge2pair(t.Edges((i+1)%3))]);
                 }
-                output.Indices.push_back(edgeMap[edge2pair(t.Edges(0))]);
-                output.Indices.push_back(edgeMap[edge2pair(t.Edges(1))]);
-                output.Indices.push_back(edgeMap[edge2pair(t.Edges(2))]);
+                output.Indices.push_back(edgeId[edge2pair(t.Edges(0))]);
+                output.Indices.push_back(edgeId[edge2pair(t.Edges(1))]);
+                output.Indices.push_back(edgeId[edge2pair(t.Edges(2))]);
             }
 
             mesh = output;
@@ -83,6 +90,7 @@ namespace VCX::Labs::GeometryProcessing {
 
     /******************* 2. Mesh Parameterization *****************/
     void Parameterization(Engine::SurfaceMesh const & input, Engine::SurfaceMesh & output, const std::uint32_t numIterations) {
+        /* Build DCEL */
         DCEL links;
         links.AddFaces(input.Indices);
         if (!links.IsValid()){
@@ -90,40 +98,44 @@ namespace VCX::Labs::GeometryProcessing {
             return;
         }
 
+        /* Find a vertex 'x' on the boundary */
         output = input;
         int n = input.Positions.size();
-        uint32_t x = n;
-        for (int i = 0; i < n; ++i)
-            if (links.GetVertex(i).IsSide()){
-                x = i;
-                break;
-            }
+        int x = n;
+        for (int i = 0; i < n; ++i) if (links.GetVertex(i).IsSide()){
+            x = i;
+            break;
+        }
         if (x == n){
             std::cerr << "No boundary" << std::endl;
             return;
         }
+
+        /* Find all vertices on the boundary in order */
         std::vector<int> boundary;
-        boundary.push_back(x);
-        // std::cerr << "Boundary: " << x << std::endl;
-        boundary.push_back(links.GetVertex(x).GetSideNeighbors().first);
-        // std::cerr << "Boundary: " << boundary.back() << std::endl;
+        boundary.push_back(x); // start from 'x'
+        boundary.push_back(links.GetVertex(x).GetSideNeighbors().first); // next vertex
         while (true){
             x = boundary.back();
             auto [n1, n2] = links.GetVertex(x).GetSideNeighbors();
-            x = (n1 == boundary[boundary.size() - 2] ? n2 : n1);
-            // std::cerr << "Boundary: " << x << std::endl;
+            x = (n1 == boundary[boundary.size() - 2] ? n2 : n1); // next vertex in this direction
             if (x == boundary[0])
                 break;
             boundary.push_back(x);
         }
+
+        /* Put all boundary vertices around a circle */
         auto &uv = output.TexCoords;
         uv = std::vector<glm::vec2>(n, glm::vec2(0));
         double pi = acos(-1);
         for (int i = 0; i < boundary.size(); ++i){
-            uv[boundary[i]] = glm::vec2(cos(2 * pi * i / boundary.size()) / 2 + 0.5, sin(2 * pi * i / boundary.size()) / 2 + 0.5);
-            // std::cerr << uv[boundary[i]].x << " " << uv[boundary[i]].y << std::endl;
+            uv[boundary[i]] = glm::vec2(
+                cos(2 * pi * i / boundary.size()) / 2 + 0.5,
+                sin(2 * pi * i / boundary.size()) / 2 + 0.5
+            );
         }
-        // std::cerr << n << ' ' << boundary.size() << std::endl;
+        
+        /* Calculate interior vertices using Jacobi method */
         for (int i = 0; i < numIterations; ++i){
             for (int j = 0; j < n; ++j){
                 if (links.GetVertex(j).IsSide())
@@ -136,45 +148,48 @@ namespace VCX::Labs::GeometryProcessing {
                     uv[j] = p / (float)neighbors.size();
             }
         }
-        std::cerr << "finish" << std::endl;
-        for (int i = 0; i < n; ++i)
-            assert(0<=uv[i].x && uv[i].x<=1 && 0<=uv[i].y && uv[i].y<=1);
     }
 
+
+
+    /*
+     * Helper function for task 3
+     * Calculate the cost and the result position of contracting 'p1' and 'p2'
+     */
     std::pair<float, glm::vec3> CalculateCost(glm::dmat4x4 Q, glm::vec3 p1, glm::vec3 p2){
         auto P = Q;
         P[3][0] = P[3][1] = P[3][2] = 0;
         P[3][3] = 1;
-        if (glm::abs(glm::determinant(P)) < 1e-15){ // Not invertible
+        if (glm::abs(glm::determinant(P)) < 1e-15){
+            /* If 'P' is not invertible, find the optimal vertex along the segment 'p1''p2' */
             glm::dvec4 w1 = glm::dvec4(p1, 1);
             glm::dvec4 w2 = glm::dvec4(p2, 1);
-            double co2 = glm::dot((w1 - w2), Q * (w1 - w2));
-            double co1 = glm::dot(w1, Q * w2) * 2;
-            if (abs(co2) < 1e-15) { // Linear function
+            /* Minimize (x*w1+(1-x)*w2)^T * Q * (x*w1+(1-x)*w2) */
+            double co2 = glm::dot((w1 - w2), Q * (w1 - w2)); // coefficient of x^2
+            double co1 = glm::dot(w1, Q * w2) * 2;           // coefficient of x
+            if (abs(co2) < 1e-15) { // case of linear function
                 if (co1 > 0)
-                    return {glm::dot(w2, Q * w2), p2};
+                    return std::make_pair(glm::dot(w2, Q * w2), p2);
                 else
-                    return {glm::dot(w1, Q * w1), p1};
+                    return std::make_pair(glm::dot(w1, Q * w1), p1);
             }
-            else { // Quadratic function
+            else { // case of quadratic function
                 double t = -co1 / (2 * co2);
                 if (t < 0)
-                    return {glm::dot(w2, Q * w2), p2};
+                    return std::make_pair(glm::dot(w2, Q * w2), p2);
                 else if (t > 1)
-                    return {glm::dot(w1, Q * w1), p1};
+                    return std::make_pair(glm::dot(w1, Q * w1), p1);
                 else
-                    return {glm::dot(w1 * t + w2 * (1- t), Q * (w1 * t + w2 * (1- t))), p1 * (float)t + p2 * (1 - (float)t)};
+                    return std::make_pair(
+                        glm::dot(w1 * t + w2 * (1- t), Q * (w1 * t + w2 * (1- t))),
+                        p1 * (float)t + p2 * (1 - (float)t)
+                    );
             }
         }
         else{
+            /* If 'P' is invertible */
             P = glm::inverse(P);
             glm::dvec4 p = glm::dvec4(0, 0, 0, 1) * P;
-            // fprintf(stderr, "-------------\n");
-            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[0][0], P[0][1], P[0][2], P[0][3]);
-            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[1][0], P[1][1], P[1][2], P[1][3]);
-            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[2][0], P[2][1], P[2][2], P[2][3]);
-            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", P[3][0], P[3][1], P[3][2], P[3][3]);
-            // fprintf(stderr, "%.3lf %.3lf %.3lf %.3lf\n", p.x, p.y, p.z, p.w);
             float cost = glm::dot(p, Q * p);
             return std::make_pair(cost, glm::vec3(p));
         }
@@ -182,8 +197,6 @@ namespace VCX::Labs::GeometryProcessing {
 
     /******************* 3. Mesh Simplification *****************/
     void SimplifyMesh(Engine::SurfaceMesh const & input, Engine::SurfaceMesh & output, float valid_pair_threshold, float simplification_ratio) {
-        // std::cerr << simplification_ratio << ' ' << valid_pair_threshold << std::endl;
-
         /* Build DCEL */
         DCEL links;
         links.AddFaces(input.Indices);
@@ -221,7 +234,7 @@ namespace VCX::Labs::GeometryProcessing {
             }
         }
 
-        /* Build disjoint set union */
+        /* Build DSU (Disjoint Set Union) */
         std::vector<int> fa(n);
         for (int i = 0; i < n; ++i) fa[i] = i;
         std::function<int(int)> find = [&](int x){
@@ -229,22 +242,21 @@ namespace VCX::Labs::GeometryProcessing {
             return fa[x] = find(fa[x]);
         };
 
-        /* Delete pairs until simplification_ratio reached */
+        /* Delete pairs until 'simplification_ratio' reached */
         int deleteNum = ceil(n * (1 - simplification_ratio));
         while (deleteNum--){
-            // std::cerr << deleteNum << ' ' << pairs.size() << std::endl;
             if (pairs.empty()){
                 std::cerr << "No valid pair" << std::endl;
                 break;
             }
+            /* Find the optimal pair 'x' and 'y' */
             auto pair = std::min_element(pairs.begin(), pairs.end())->second;
             int x = pair.first, y = pair.second;
-            assert(x == find(x) && y == find(y));
+            /* Contract 'x' and 'y' */
             Q[x] += Q[y];
             fa[y] = x;
-            // std::cerr << pos[x].x << ' ' << pos[x].y << ' ' << pos[x].z << std::endl;
             pos[x] = CalculateCost(Q[x], pos[x], pos[y]).second;
-            // std::cerr << pos[x].x << ' ' << pos[x].y << ' ' << pos[x].z << std::endl;
+            /* Update other pairs */
             std::vector<std::pair<int, int>> newPairs;
             for (auto [_, pair]: pairs){
                 int u = find(pair.first), v = find(pair.second);
@@ -260,7 +272,7 @@ namespace VCX::Labs::GeometryProcessing {
             }
         }
 
-        /* Rebuild structure after simplification */
+        /* Rebuild mesh after simplification */
         std::vector<int> id(n), cnt(n);
         output.Positions.clear();
         for (int i = 0; i < n; ++i) if (find(i) == i) {
@@ -292,24 +304,29 @@ namespace VCX::Labs::GeometryProcessing {
             /* Calculate new positions */
             auto &pos = output.Positions;
             std::vector<glm::vec3> newPos(pos.size());
+            /* Iterate over all vertices */
             for (int i = 0; i < pos.size(); ++i){
                 glm::vec3 sum(0);
                 float totalWeight = 0;
+                /* Iterate over relating triangles */
                 for (auto f: links.GetVertex(i).GetFaces()){
                     int id = 0;
                     while (*f->Indices(id) != i) ++id;
-                    int x = *f->Indices((id+1)%3);
+                    int x = *f->Indices((id+1)%3); // a neighbor of vertex 'i'
                     float weight;
                     if (useUniformWeight){
                         weight = 1;
                     } else {
-                        int y = *f->Indices((id+2)%3);
-                        int z = f->OppositeVertex((id+2)%3);
-                        float alpha = glm::acos(glm::dot(pos[i] - pos[z], pos[x] - pos[z]) / glm::length(pos[i] - pos[z]) / glm::length(pos[x] - pos[z]));
-                        float beta = glm::acos(glm::dot(pos[i] - pos[y], pos[x] - pos[y]) / glm::length(pos[i] - pos[y]) / glm::length(pos[x] - pos[y]));
+                        int y = *f->Indices((id+2)%3); // 'i', 'x', and 'y' form a triangle
+                        int z = f->OppositeVertex((id+2)%3); // 'i', 'x', and 'z' form another triangle
+                        float cosAlpha = glm::dot(pos[i] - pos[z], pos[x] - pos[z]) / glm::length(pos[i] - pos[z]) / glm::length(pos[x] - pos[z]);
+                        float cosBeta = glm::dot(pos[i] - pos[y], pos[x] - pos[y]) / glm::length(pos[i] - pos[y]) / glm::length(pos[x] - pos[y]);
+                        cosAlpha = glm::max(glm::min(cosAlpha, 1.0f), -1.0f);
+                        cosBeta = glm::max(glm::min(cosBeta, 1.0f), -1.0f);
+                        float alpha = acos(cosAlpha), beta = acos(cosBeta);
                         weight = glm::cot(alpha) + glm::cot(beta);
                     }
-                    sum += weight * pos[*f->Indices((id+1)%3)];
+                    sum += weight * pos[x];
                     totalWeight += weight;
                 }
                 newPos[i] = (1 - lambda) * pos[i] + lambda * sum / totalWeight;
@@ -318,6 +335,11 @@ namespace VCX::Labs::GeometryProcessing {
         }
     }
 
+
+    /*
+     * Helper function for task 5
+     * Compare two integer vectors (used in std::map)
+     */
     struct cmp_ivec4{
         bool operator()(glm::ivec4 const &a, glm::ivec4 const &b) const {
             if (a.x != b.x) return a.x < b.x;
@@ -329,16 +351,20 @@ namespace VCX::Labs::GeometryProcessing {
 
     /******************* 5. Marching Cubes *****************/
     void MarchingCubes(Engine::SurfaceMesh & output, const std::function<float(const glm::vec3 &)> & sdf, const glm::vec3 & grid_min, const float dx, const int n) {
+        /* 'edgeId' maps an edge of a cube (specified by direction and one vertex) to vertex id in the result mesh */
         std::map<glm::ivec4, int, cmp_ivec4> edgeId;
+        /* March cubes */
         for (int i = 0; i < n; ++i)
             for (int j = 0; j < n; ++j)
                 for (int k = 0; k < n; ++k){
                     glm::vec3 p = grid_min + glm::vec3(i, j, k) * dx;
+                    /* Calculate 'state': vertices that are inside the surface */
                     int state = 0;
                     for (int t = 0; t < 8; ++t){
                         glm::vec3 v = p + glm::vec3(t&1, t>>1&1, t>>2&1) * dx;
                         if (sdf(v) < 0) state |= 1 << t;
                     }
+                    /* Iterate over triangles that should be added */
                     for (int t = 0; c_EdgeOrdsTable[state][t] != -1; t += 3){
                         for (int o = 0; o < 3; ++o){
                             int edge = c_EdgeOrdsTable[state][t+o];
@@ -348,12 +374,11 @@ namespace VCX::Labs::GeometryProcessing {
                             if (edge&2) key[(dir+2)%3+1] += 1;
                             if (!edgeId.count(key)){
                                 edgeId[key] = output.Positions.size();
+                                /* Interpolate vertex position */
                                 glm::vec3 p1 = grid_min + glm::vec3(key[1], key[2], key[3]) * dx;
                                 glm::vec3 p2 = p1;
                                 p2[dir] += dx;
                                 output.Positions.push_back(p1 + (p2 - p1) * sdf(p1) / (sdf(p1) - sdf(p2)));
-                                // p1[dir] += dx / 2;
-                                // output.Positions.push_back(p1);
                             }
                             output.Indices.push_back(edgeId[key]);
                         }

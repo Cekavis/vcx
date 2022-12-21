@@ -4,7 +4,7 @@
 \usepackage{amsmath}
 \usepackage{subcaption}
 \usepackage{graphicx}
-\usepackage[bottom=6em]{geometry}
+\usepackage[left=3em,right=3em,top=4em,bottom=4em]{geometry}
 \usepackage{lmodern}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -20,17 +20,19 @@
 按照课件给出的公式计算即可。
 
 \begin{figure}[htbp]
+    \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/1-1.png}
+        \includegraphics[width=0.8\textwidth]{images/1-1.png}
         \caption{Phong 光照模型}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/1-2.png}
+        \includegraphics[width=0.8\textwidth]{images/1-2.png}
         \caption{Blinn-Phong 光照模型}
     \end{subfigure}
+    \hfill
     \caption*{Task 1}
 \end{figure}
 
@@ -39,6 +41,23 @@
     \item 这行语句用于在像素不透明度过小时忽略该像素。不能使用 \texttt{if (diffuseFactor.a == 0.) discard;} 是因为浮点数一般需要处理误差，而且透明度较高的情况可能是一些图像的边缘部分，本来应该被忽略。
 \end{enumerate}
 
+另外我参考了提供的资料实现了凹凸映射，图片在下面。
+
+\begin{figure}[htbp]
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/1-3.png}
+        \caption{无凹凸映射}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/1-4.png}
+        \caption{凹凸映射}
+    \end{subfigure}
+    \caption*{Task1：凹凸映射}
+\end{figure}
+
 \section*{Task 2: Environment Mapping}
 
 在计算立方体贴图的位置时，应当移除观察矩阵的位移部分，保留旋转部分，并且设置其位置的 z 值为 1，确保它在所有物体的后方。计算环境映射时，将视线方向按物体表面的法向做反射，从立方体贴图中采样。
@@ -46,13 +65,13 @@
 \begin{figure}[htbp]
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/2-1.png}
+        \includegraphics[width=0.8\textwidth]{images/2-1.png}
         \caption{teapot 场景}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/2-2.png}
+        \includegraphics[width=0.8\textwidth]{images/2-2.png}
         \caption{bunny 场景}
     \end{subfigure}
     \caption*{Task 2}
@@ -65,13 +84,13 @@
 \begin{figure}[htbp]
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/3-1.png}
+        \includegraphics[width=0.8\textwidth]{images/3-1.png}
         \caption{teapot 场景}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/3-2.png}
+        \includegraphics[width=0.8\textwidth]{images/3-2.png}
         \caption{bunny 场景}
     \end{subfigure}
     \caption*{Task 3}
@@ -89,13 +108,13 @@
 \begin{figure}[htbp]
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/4-1.png}
+        \includegraphics[width=0.8\textwidth]{images/4-1.png}
         \caption{white oak 场景}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.49\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{images/4-2.png}
+        \includegraphics[width=0.8\textwidth]{images/4-2.png}
         \caption{sponza 场景}
     \end{subfigure}
     \caption*{Task 4}

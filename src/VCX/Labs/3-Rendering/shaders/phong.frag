@@ -46,8 +46,19 @@ vec3 GetNormal() {
     // Bump mapping from paper: Bump Mapping Unparametrized Surfaces on the GPU
     vec3 vn = normalize(v_Normal);
 
-    // your code here:
-    vec3 bumpNormal = vn;
+    vec3 posDX = dFdx(v_Position.xyz);
+    vec3 posDY = dFdy(v_Position.xyz);
+    vec3 r1 = cross(posDY, vn);
+    vec3 r2 = cross(vn, posDX);
+    float det = dot(posDX , r1);
+    float Hll = texture(u_HeightMap, v_TexCoord).x;
+    float Hlr = texture(u_HeightMap, v_TexCoord + dFdx(v_TexCoord.xy)).x;
+    float Hul = texture(u_HeightMap, v_TexCoord + dFdy(v_TexCoord.xy)).x;
+
+    // gradient of surface texture. dBs=Hlr-Hll, dBt=Hul-Hll
+    vec3 surf_grad = sign(det) * ((Hlr - Hll) * r1 + (Hul - Hll)* r2);    
+    float bump_amt = 0.7;       // bump_amt = adjustable bump amount
+    vec3 bumpNormal = vn*(1.0-bump_amt) + bump_amt * normalize(abs(det)*vn - surf_grad);
 
     return bumpNormal != bumpNormal ? vn : normalize(vn * (1. - u_BumpMappingBlend) + bumpNormal * u_BumpMappingBlend);
 }

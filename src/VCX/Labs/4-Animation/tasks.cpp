@@ -16,7 +16,8 @@ namespace VCX::Labs::Animation {
         }
         
         for (int i = StartIndex; i < ik.JointLocalOffset.size(); i++) {
-            // your code here: forward kinematics
+            ik.JointGlobalRotation[i] = ik.JointGlobalRotation[i - 1] * ik.JointLocalRotation[i];
+            ik.JointGlobalPosition[i] = ik.JointGlobalPosition[i - 1] + ik.JointGlobalRotation[i - 1] * ik.JointLocalOffset[i];
         }
     }
 
@@ -24,7 +25,15 @@ namespace VCX::Labs::Animation {
         ForwardKinematics(ik, 0);
         // These functions will be useful: glm::normalize, glm::rotation, glm::quat * glm::quat
         for (int CCDIKIteration = 0; CCDIKIteration < maxCCDIKIteration && glm::l2Norm(ik.EndEffectorPosition() - EndPosition) > eps; CCDIKIteration++) {
-            // your code here: ccd ik
+            glm::vec3 endPos = ik.JointGlobalPosition.back();
+            for (int i = ik.JointLocalOffset.size() - 1; i > 0; i--) {
+                glm::vec3 jointPos = ik.JointGlobalPosition[i - 1];
+                glm::vec3 offset = endPos - jointPos;
+                glm::quat rotation = glm::rotation(glm::normalize(offset), glm::normalize(EndPosition - jointPos));
+                ik.JointLocalRotation[i - 1] *= rotation;
+                endPos = jointPos + rotation * offset;
+            }
+            ForwardKinematics(ik, 0);
         }
     }
 
@@ -39,14 +48,18 @@ namespace VCX::Labs::Animation {
             backward_positions[nJoints - 1] = EndPosition;
 
             for (int i = nJoints - 2; i >= 0; i--) {
-                // your code here
+                glm::vec3 offset = next_position - ik.JointGlobalPosition[i];
+                next_position -= glm::normalize(offset) * glm::length(ik.JointLocalOffset[i + 1]);
+                backward_positions[i] = next_position;
             }
 
             // forward update
             glm::vec3 now_position = ik.JointGlobalPosition[0];
             forward_positions[0] = ik.JointGlobalPosition[0];
             for (int i = 0; i < nJoints - 1; i++) {
-                // your code here
+                glm::vec3 offset = backward_positions[i + 1] - now_position;
+                now_position += glm::normalize(offset) * glm::length(ik.JointLocalOffset[i + 1]);
+                forward_positions[i + 1] = now_position;
             }
             ik.JointGlobalPosition = forward_positions; // copy forward positions to joint_positions
         }

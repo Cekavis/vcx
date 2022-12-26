@@ -76,18 +76,51 @@ namespace VCX::Labs::Animation {
     }
 
     IKSystem::Vec3ArrPtr IKSystem::BuildCustomTargetPosition() {
-        // get function from https://www.wolframalpha.com/input/?i=Albert+Einstein+curve
-        int nums = 5000;
+        int nums = 30;
         using Vec3Arr = std::vector<glm::vec3>;
-        std::shared_ptr<Vec3Arr> custom(new Vec3Arr(nums));
+        std::shared_ptr<Vec3Arr> custom(new Vec3Arr(nums * 19));
         int index = 0;
-        for (int i = 0; i < nums; i++) {
-            float x_val = 1.5e-3f * custom_x(92 * glm::pi<float>() * i / nums);
-            float y_val = 1.5e-3f * custom_y(92 * glm::pi<float>() * i / nums);
-            if (std::abs(x_val) < 1e-3 || std::abs(y_val) < 1e-3) continue;
-            (*custom)[index++] = glm::vec3(1.6f - x_val, 0.0f, y_val - 0.2f);
-        }
-        custom->resize(index);
+
+        auto horizontal = [&](float offsetX, float offsetY) {
+            for (int i = 0; i < nums; i++) {
+                float x_val = offsetX - .5 * i / nums;
+                float y_val = offsetY;
+                (*custom)[index++] = glm::vec3(x_val, 0.0f, y_val);
+            }
+        };
+        auto vertical = [&](float offsetX, float offsetY) {
+            for (int i = 0; i < nums; i++) {
+                float x_val = offsetX;
+                float y_val = offsetY - .5 * i / nums;
+                (*custom)[index++] = glm::vec3(x_val, 0.0f, y_val);
+            }
+        };
+        auto digitToPoints = [&](int d, float offset) {
+            if (d == 1) {
+                vertical(offset, 0);
+                vertical(offset, .5);
+            }
+            if (d == 4) {
+                vertical(offset, 0);
+                vertical(offset, .5);
+                horizontal(offset, 0);
+                vertical(offset - .5, 0);
+            }
+            if (d == 5) {
+                horizontal(offset, 0);
+                horizontal(offset, .5);
+                horizontal(offset, -.5);
+                vertical(offset, .5);
+                vertical(offset - .5, 0);
+            }
+        };
+
+        digitToPoints(1, -1.7);
+        digitToPoints(1, -1.0);
+        digitToPoints(4, -0.3);
+        digitToPoints(5, 0.4);
+        digitToPoints(1, 1.1);
+        digitToPoints(4, 1.8);
         return custom;
     }
 

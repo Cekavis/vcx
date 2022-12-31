@@ -24,6 +24,7 @@ namespace VCX::Labs::Animation {
     void InverseKinematicsCCD(IKSystem & ik, const glm::vec3 & EndPosition, int maxCCDIKIteration, float eps) {
         ForwardKinematics(ik, 0);
         // These functions will be useful: glm::normalize, glm::rotation, glm::quat * glm::quat
+        int cnt = 0;
         for (int CCDIKIteration = 0; CCDIKIteration < maxCCDIKIteration && glm::l2Norm(ik.EndEffectorPosition() - EndPosition) > eps; CCDIKIteration++) {
             glm::vec3 endPos = ik.JointGlobalPosition.back();
             for (int i = ik.JointLocalOffset.size() - 1; i > 0; i--) {
@@ -34,13 +35,16 @@ namespace VCX::Labs::Animation {
                 endPos = jointPos + rotation * offset;
             }
             ForwardKinematics(ik, 0);
+            ++cnt;
         }
+        std::cerr << "CCD IK Iteration: " << cnt << std::endl;
     }
 
     void InverseKinematicsFABR(IKSystem & ik, const glm::vec3 & EndPosition, int maxFABRIKIteration, float eps) {
         ForwardKinematics(ik, 0);
         int nJoints = ik.NumJoints();
         std::vector<glm::vec3> backward_positions(nJoints, glm::vec3(0, 0, 0)), forward_positions(nJoints, glm::vec3(0, 0, 0));
+        int cnt = 0;
         for (int IKIteration = 0; IKIteration < maxFABRIKIteration && glm::l2Norm(ik.EndEffectorPosition() - EndPosition) > eps; IKIteration++) {
             // task: fabr ik
             // backward update
@@ -62,7 +66,9 @@ namespace VCX::Labs::Animation {
                 forward_positions[i + 1] = now_position;
             }
             ik.JointGlobalPosition = forward_positions; // copy forward positions to joint_positions
+            ++cnt;
         }
+        std::cerr << "FABRIK Iteration: " << cnt << std::endl;
 
         // Compute joint rotation by position here.
         for (int i = 0; i < nJoints - 1; i++) {

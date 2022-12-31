@@ -126,10 +126,30 @@ namespace VCX::Labs::Animation {
 
     void AdvanceMassSpringSystem(MassSpringSystem & system, float const dt) {
         // your code here: rewrite following code
-        int const steps = 1000;
-        float const ddt = dt / steps; 
+        int const steps = 10;
+        float const ddt = dt / steps;
         for (std::size_t s = 0; s < steps; s++) {
-            std::vector<glm::vec3> forces(system.Positions.size(), glm::vec3(0));
+            int n = system.Positions.size();
+            Eigen::SparseMatrix<float> M(3*n, 3*n);
+            std::vector<Eigen::Triplet<float>> coefficients;
+            Eigen::VectorXf b = Eigen::VectorXf::Zero(3*n);
+
+            auto addCoefficient = [&](int i, int j, glm::vec3 a) {
+                coefficients.push_back(Eigen::Triplet<float>(3*i, 3*j, a.x));
+                coefficients.push_back(Eigen::Triplet<float>(3*i+1, 3*j+1, a.y));
+                coefficients.push_back(Eigen::Triplet<float>(3*i+2, 3*j+2, a.z));
+            };
+
+            auto addB = [&](int i, glm::vec3 a) {
+                b[3*i] += a.x;
+                b[3*i+1] += a.y;
+                b[3*i+2] += a.z;
+            };
+
+            for (int i = 0; i < n; i++) {
+                addCoefficient(i, i, glm::vec3(1));
+                addB(i, system.Velocities[i] + glm::vec3(0, -ddt * system.Gravity, 0));
+            }
             for (auto const spring : system.Springs) {
                 auto const p0 = spring.AdjIdx.first;
                 auto const p1 = spring.AdjIdx.second;
@@ -137,12 +157,21 @@ namespace VCX::Labs::Animation {
                 glm::vec3 const v01 = system.Velocities[p1] - system.Velocities[p0];
                 glm::vec3 const e01 = glm::normalize(x01);
                 glm::vec3 f = (system.Stiffness * (glm::length(x01) - spring.RestLength) + system.Damping * glm::dot(v01, e01)) * e01;
-                forces[p0] += f;
-                forces[p1] -= f;
+                addB(p0, f * ddt / system.Mass);
+                addB(p1, -f * ddt / system.Mass);
+                
+                addCoefficient(p0, p0, glm::vec3(-ddt * ddt / system.Mass));
+                addCoefficient(p0, p1, glm::vec3(ddt * ddt / system.Mass));
+                addCoefficient(p1, p1, glm::vec3(-ddt * ddt / system.Mass));
+                addCoefficient(p1, p0, glm::vec3(ddt * ddt / system.Mass));
             }
-            for (std::size_t i = 0; i < system.Positions.size(); i++) {
+
+            M.setFromTriplets(coefficients.begin(), coefficients.end());
+            auto solver = Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>(M);
+            Eigen::VectorXf x = solver.solve(b);
+            for (int i = 0; i < n; i++) {
                 if (system.Fixed[i]) continue;
-                system.Velocities[i] += (glm::vec3(0, -system.Gravity, 0) + forces[i] / system.Mass) * ddt;
+                system.Velocities[i] = glm::vec3(x[3*i], x[3*i+1], x[3*i+2]);
                 system.Positions[i] += system.Velocities[i] * ddt;
             }
         }

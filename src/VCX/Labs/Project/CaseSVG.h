@@ -1,14 +1,15 @@
 #pragma once
 
+#include "Engine/GL/Frame.hpp"
 #include "Engine/Async.hpp"
 #include "Labs/Common/ICase.h"
 #include "Labs/Common/ImageRGB.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Project {
 
-    class CaseFixed : public Common::ICase {
+    class CaseSVG : public Common::ICase {
     public:
-        CaseFixed();
+        CaseSVG();
 
         virtual std::string_view const GetName() override { return "Draw fixed images"; }
         
@@ -18,15 +19,16 @@ namespace VCX::Labs::GettingStarted {
     
     private:
 
-        std::array<Engine::GL::UniqueTexture2D, 2> _textures;
+        Engine::GL::UniqueTexture2D _texture;
 
-        std::array<Common::ImageRGB, 2> _empty;
+        Common::ImageRGB _empty;
 
         Engine::Async<Common::ImageRGB> _task;
 
-        int  _sizeId     = 0;
-        int  _bgId       = 0;
-        bool _enableZoom = true;
-        bool _recompute  = true;
+        int  _width         = 0;
+        int  _height        = 0;
+        bool _enableZoom    = true;
+        bool _recompute     = true;
+        char _filePath[256] = "C:\\Users\\Vlad\\Desktop\\test.svg";
     };
 }

@@ -1,37 +1,21 @@
 #include <algorithm>
 #include <array>
+#include <iostream>
+#include <tinyxml2.h>
 
 #include "Labs/Project/CaseSVG.h"
 #include "Labs/Common/ImGuiHelper.h"
+#include "Labs/Project/RenderSVG.h"
 
 namespace VCX::Labs::Project {
 
-    static constexpr auto c_Sizes = std::to_array<std::pair<std::uint32_t, std::uint32_t>>({
-        { 320U, 320U },
-        { 640U, 640U } 
-    });
-
-    static constexpr auto c_SizeItems = std::array<char const *, 2> {
-        "Small (320 x 320)",
-        "Large (640 x 640)"
-    };
-
-    static constexpr auto c_BgItems = std::array<char const *, 3> {
-        "White",
-        "Black",
-        "Checkboard"
-    };
-
-    CaseSVG::CaseSVG() : 
-        _empty(
-            Common::CreatePureImageRGB(100, 100, { 2.f / 17, 2.f / 17, 2.f / 17 })
-        ) {
-        auto const useTexture { _texture.Use() };
+    CaseSVG::CaseSVG() {
+        gl_using(_texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 100, 100, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 640, 640, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     }
 
     void CaseSVG::OnSetupPropsUI() {
@@ -40,30 +24,42 @@ namespace VCX::Labs::Project {
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
-        auto const width = desiredSize.first - 40;
-        auto const height = desiredSize.second - 40;
+        std::uint32_t width = desiredSize.first - 40;
+        std::uint32_t height = desiredSize.second - 40;
+        // width = height = 640;
         if (width != _width || height != _height) {
-            _width = width;
-            _height = height;
             _recompute = true;
         }
 
         if (_recompute) {
             _recompute = false;
-            _task.Emplace([=]() {
-                Common::ImageRGB image({ 0, 0 });
-                
+            auto tex { Common::CreateCheckboardImageRGB(width, height) };
 
-                return image;
-            });
+            tinyxml2::XMLDocument doc;
+            if (doc.LoadFile(_filePath)) {
+                std::cerr << "Failed to load SVG file: " << _filePath << std::endl;
+            }
+            else {
+                auto const * root = doc.FirstChildElement("svg");
+                if (!root) {
+                    std::cerr << "Failed to find root element in SVG file: " << _filePath << std::endl;
+                }
+                else {
+                    if (render(tex, root, width, height)) {
+                        _width = width;
+                        _height = height;
+                    }
+                    else {
+                        std::cerr << "Failed to render SVG file: " << _filePath << std::endl;
+                    }
+                }
+            }
+
+            gl_using(_texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex.GetBytes().data());
+            glGenerateMipmap(GL_TEXTURE_2D);
         }
-        auto const useTexture { _texture.Use() };
-        _empty = Common::CreatePureImageRGB(width, height, { 2.f / 17, 2.f / 17, 2.f / 17 });
-        glTexSubImage2D(
-            GL_TEXTURE_2D, 0, 0, 0, width, height,
-            GL_RGB, GL_UNSIGNED_BYTE,
-            _task.ValueOr(_empty).GetBytes().data());
-        glGenerateMipmap(GL_TEXTURE_2D);
+
         return Common::CaseRenderResult {
             .Fixed     = true,
             .Image     = _texture,

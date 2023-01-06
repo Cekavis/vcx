@@ -13,6 +13,7 @@ namespace VCX::Labs::Project {
 
     void _drawLine(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2);
     void _drawTriangleFilled(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2, glm::ivec2);
+    void _drawPolygonFilled(Common::ImageRGB &, glm::vec3, std::vector<glm::vec2> const &);
 
     std::vector<glm::vec2> ParsePoints(const char *s);
     glm::vec3 GetColor(const char *s);

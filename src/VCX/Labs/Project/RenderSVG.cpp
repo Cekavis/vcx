@@ -4,18 +4,19 @@
 
 namespace VCX::Labs::Project {
 
-    static float w, h, ratio;
+    static float imgWidth, imgHeight, width, height, ratio;
 
-    bool render(ImageRGB &image, tinyxml2::XMLElement const *root, std::uint32_t &width, std::uint32_t &height) {
-        if (root->QueryFloatAttribute("width", &w))
+    bool render(ImageRGB &image, tinyxml2::XMLElement const *root, std::uint32_t &_width, std::uint32_t &_height) {
+        if (root->QueryFloatAttribute("width", &imgWidth))
             return 0;
-        if (root->QueryFloatAttribute("height", &h))
+        if (root->QueryFloatAttribute("height", &imgHeight))
             return 0;
-        if (width / w < height / h)
-            height = ceil(width * h / w), ratio = w / width;
+        if (_width / imgWidth < _height / imgHeight)
+            _height = ceil(_width * imgHeight / imgWidth), ratio = imgWidth / _width;
         else
-            width = ceil(height * w / h), ratio = h / height;
-        // image = Common::CreateCheckboardImageRGB(width, height);
+            _width = ceil(_height * imgWidth / imgHeight), ratio = imgHeight / _height;
+
+        width = _width, height = _height;
         image = Common::CreatePureImageRGB(width, height, { 1., 1., 1. });
 
         for (auto child = root->FirstChildElement(); child != NULL; child = child->NextSiblingElement()) {
@@ -29,14 +30,16 @@ namespace VCX::Labs::Project {
 
     void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path) {
         auto points = ParsePoints(path->Attribute("points"));
-        int n = points.size();
+        if (points.empty()){
+            std::cout << "Empty polygon" << std::endl;
+            return;
+        }
+        for (auto &p : points) p /= ratio;
+        points.push_back(points[0]);
+        int n = points.size() - 1;
         for (int i = 0; i < n; i++)
-            _drawLine(
-                image,
-                GetColor(path->Attribute("stroke")),
-                {points[i].x / ratio, points[i].y / ratio},
-                {points[(i + 1) % n].x / ratio, points[(i + 1) % n].y / ratio}
-            );
+            _drawLine(image, GetColor(path->Attribute("stroke")), points[i], points[i+1]);
+        _drawPolygonFilled(image, GetColor(path->Attribute("fill")), points);
     }
 
     void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path) {
@@ -104,6 +107,28 @@ namespace VCX::Labs::Project {
             for (std::size_t y = yl; y<=yr; ++y)
                 if (0<=x && x < canvas.GetSizeX() && y < canvas.GetSizeY())
                     canvas.SetAt({ (std::size_t)x, y }, color);
+        }
+    }
+
+    void _drawPolygonFilled(
+        ImageRGB &                     canvas,
+        glm::vec3 const                color,
+        std::vector<glm::vec2> const & points) {
+        int n = points.size() - 1;
+        for (int x = 0; x < width; ++x) {
+            std::vector<int> ys;
+            for (int i = 0; i < n; ++i) {
+                glm::vec2 const *p0 = &points[i], *p1 = &points[i+1];
+                if (p0->x > p1->x) std::swap(p0, p1);
+                if (p0->x <= x && x < p1->x) {
+                    int y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                    ys.push_back(y);
+                }
+            }
+            std::sort(ys.begin(), ys.end());
+            for (int i = 0; i < ys.size(); i += 2)
+                for (int y = ys[i]; y <= ys[i + 1]; ++y)
+                    canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
         }
     }
 

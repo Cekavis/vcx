@@ -24,6 +24,8 @@ namespace VCX::Labs::Project {
                 DrawLine(image, child);
             if (child->Name() == std::string("rect"))
                 DrawRect(image, child);
+            if (child->Name() == std::string("polyline"))
+                DrawPolygon(image, child, 1);
             if (child->Name() == std::string("polygon"))
                 DrawPolygon(image, child);
             if (child->Name() == std::string("path"))
@@ -41,7 +43,7 @@ namespace VCX::Labs::Project {
         x1 /= ratio, y1 /= ratio, x2 /= ratio, y2 /= ratio;
 
         glm::vec4 color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 0);
+        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
         if (color.a > 0)
             if (width > 0)
                 _drawThickLine(image, color, { x1, y1 }, { x2, y2 }, width);
@@ -69,7 +71,7 @@ namespace VCX::Labs::Project {
         
         /* Draw outline */
         color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 1);
+        float width = path->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0) {
             _drawThickLine(image, color, { x - width, y }, { x + w + width, y }, width);
             _drawThickLine(image, color, { x - width, y + h }, { x + w + width, y + h }, width);
@@ -78,7 +80,7 @@ namespace VCX::Labs::Project {
         }
     }
 
-    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path) {
+    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path, int isPolyline) {
         auto points = ParsePoints(path->Attribute("points"));
         if (points.empty()){
             std::cout << "Empty polygon" << std::endl;
@@ -95,9 +97,9 @@ namespace VCX::Labs::Project {
 
         /* Draw outline */
         color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 0);
+        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
         if (color.a > 0)
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < n - isPolyline; i++)
                 if (width > 0)
                     _drawThickLine(image, color, points[i], points[i + 1], width);
                 else
@@ -240,7 +242,6 @@ namespace VCX::Labs::Project {
     }
 
     glm::vec4 GetColor(const char *s){
-        std::cerr << "GetColor: " << s << "\n";
         if (s == NULL) return glm::vec4(0);
         if (s[0] == '#') {
             if (strlen(s) == 7){

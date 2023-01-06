@@ -10,7 +10,7 @@ namespace VCX::Labs::Project {
 
     void DrawLine(ImageRGB &image, const tinyxml2::XMLElement *path);
     void DrawRect(ImageRGB &image, const tinyxml2::XMLElement *path);
-    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path);
+    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path, int isPolyline = 0);
     void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path);
 
     void _drawLine(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2);

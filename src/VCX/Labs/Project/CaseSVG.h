@@ -21,10 +21,12 @@ namespace VCX::Labs::Project {
 
         Engine::GL::UniqueTexture2D _texture;
 
+        int  _windowWidth   = 0;
+        int  _windowHeight  = 0;
         int  _width         = 0;
         int  _height        = 0;
         bool _enableZoom    = true;
         bool _recompute     = true;
-        char _filePath[256] = "C:\\Users\\cekav\\Documents\\Cekavis\\Build\\VCL\\Lab\\vcx\\assets\\images\\TikTok-logo.svg";
+        char _filePath[256] = "C:\\Users\\cekav\\Documents\\Cekavis\\Build\\VCL\\Lab\\vcx\\assets\\images\\basic_shapes.svg";
     };
 }

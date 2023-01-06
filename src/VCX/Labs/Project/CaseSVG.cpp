@@ -15,7 +15,7 @@ namespace VCX::Labs::Project {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 640, 640, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 320, 320, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     }
 
     void CaseSVG::OnSetupPropsUI() {
@@ -26,14 +26,15 @@ namespace VCX::Labs::Project {
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
         std::uint32_t width = desiredSize.first - 40;
         std::uint32_t height = desiredSize.second - 40;
-        // width = height = 640;
-        if (width != _width || height != _height) {
+        if (width != _windowWidth || height != _windowHeight) {
+            _windowWidth = width;
+            _windowHeight = height;
             _recompute = true;
         }
 
         if (_recompute) {
             _recompute = false;
-            auto tex { Common::CreateCheckboardImageRGB(width, height) };
+            auto tex { Common::CreateCheckboardImageRGB(320, 320) };
 
             tinyxml2::XMLDocument doc;
             if (doc.LoadFile(_filePath)) {
@@ -49,9 +50,7 @@ namespace VCX::Labs::Project {
                         _width = width;
                         _height = height;
                     }
-                    else {
-                        std::cerr << "Failed to render SVG file: " << _filePath << std::endl;
-                    }
+                    else std::cerr << "Failed to render SVG file: " << _filePath << std::endl;
                 }
             }
 
@@ -63,7 +62,7 @@ namespace VCX::Labs::Project {
         return Common::CaseRenderResult {
             .Fixed     = true,
             .Image     = _texture,
-            .ImageSize = { width, height }
+            .ImageSize = { _width, _height }
         };
     }
 

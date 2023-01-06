@@ -7,5 +7,13 @@ using VCX::Labs::Common::ImageRGB;
 
 namespace VCX::Labs::Project {
     bool render(ImageRGB &image, const tinyxml2::XMLElement *root, std::uint32_t &width, std::uint32_t &height);
-    void DrawLine(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2);
+
+    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path);
+    void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path);
+
+    void _drawLine(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2);
+    void _drawTriangleFilled(Common::ImageRGB &, glm::vec3, glm::ivec2, glm::ivec2, glm::ivec2);
+
+    std::vector<glm::vec2> ParsePoints(const char *s);
+    glm::vec3 GetColor(const char *s);
 }

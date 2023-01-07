@@ -28,6 +28,8 @@ namespace VCX::Labs::Project {
                 DrawPolygon(image, child, 1);
             if (child->Name() == std::string("polygon"))
                 DrawPolygon(image, child);
+            if (child->Name() == std::string("circle"))
+                DrawCircle(image, child);
             if (child->Name() == std::string("path"))
                 DrawPath(image, child);
         }
@@ -104,6 +106,25 @@ namespace VCX::Labs::Project {
                     _drawThickLine(image, color, points[i], points[i + 1], width);
                 else
                     _drawLine(image, color, points[i], points[i + 1]);
+    }
+
+    void DrawCircle(ImageRGB &image, const tinyxml2::XMLElement *path) {
+        float cx, cy, r;
+        if (path->QueryFloatAttribute("cx", &cx)) return;
+        if (path->QueryFloatAttribute("cy", &cy)) return;
+        if (path->QueryFloatAttribute("r", &r)) return;
+        cx /= ratio, cy /= ratio, r /= ratio;
+
+        /* Draw interior */
+        glm::vec4 color = GetColor(path->Attribute("fill"));
+        if (color.a > 0)
+            _drawCircle(image, color, { cx, cy }, r);
+
+        /* Draw outline */
+        color = GetColor(path->Attribute("stroke"));
+        float width = path->FloatAttribute("stroke-width", 1) / ratio / 2;
+        if (color.a > 0)
+            _drawCircle(image, color, { cx, cy }, r + width, r - width);
     }
 
     void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path) {
@@ -212,6 +233,28 @@ namespace VCX::Labs::Project {
         points.push_back(p1 + normal * width);
         points.push_back(p0 + normal * width);
         _drawPolygonFilled(canvas, color, points);
+    }
+
+    void _drawCircle(
+        ImageRGB &       canvas,
+        glm::vec3 const  color,
+        glm::vec2 const  center,
+        float            r1,
+        float            r2) {
+        
+        for (int x = 0; x < width; ++x) if (fabs(x - center.x) <= r1) {
+            float y1 = center.y - sqrt(r1*r1 - (x-center.x)*(x-center.x));
+            float y2 = center.y + sqrt(r1*r1 - (x-center.x)*(x-center.x));
+            float y3 = y1, y4 = y1;
+            if (fabs(x - center.x) <= r2) {
+                y3 = center.y - sqrt(r2*r2 - (x-center.x)*(x-center.x));
+                y4 = center.y + sqrt(r2*r2 - (x-center.x)*(x-center.x));
+            }
+            for (int y = std::max(0.f, y1); y < y3 && y < height; ++y)
+                canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
+            for (int y = std::max(0.f, y4); y < y2 && y < height; ++y)
+                canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
+        }
     }
 
     std::vector<glm::vec2> ParsePoints(const char *s){

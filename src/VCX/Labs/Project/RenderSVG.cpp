@@ -4,67 +4,100 @@
 
 namespace VCX::Labs::Project {
 
-    static float imgWidth, imgHeight, width, height, ratio;
+    static ImageRGB *canvas;
+    static glm::ivec2 view;
+    static float width, height, ratio;
+
+    void _render(tinyxml2::XMLElement const *ele){
+        for (auto child = ele->FirstChildElement(); child != NULL; child = child->NextSiblingElement()) {
+            if (child->Name() == std::string("g"))
+                _render(child);
+            if (child->Name() == std::string("line"))
+                DrawLine(child);
+            if (child->Name() == std::string("rect"))
+                DrawRect(child);
+            if (child->Name() == std::string("polyline"))
+                DrawPolygon(child, 1);
+            if (child->Name() == std::string("polygon"))
+                DrawPolygon(child);
+            if (child->Name() == std::string("circle"))
+                DrawCircle(child);
+            if (child->Name() == std::string("path"))
+                DrawPath(child);
+        }
+    }
 
     bool render(ImageRGB &image, tinyxml2::XMLElement const *root, std::uint32_t &_width, std::uint32_t &_height) {
-        if (root->QueryFloatAttribute("width", &imgWidth))
-            return 0;
-        if (root->QueryFloatAttribute("height", &imgHeight))
-            return 0;
-        if (_width / imgWidth < _height / imgHeight)
-            _height = ceil(_width * imgHeight / imgWidth), ratio = imgWidth / _width;
-        else
-            _width = ceil(_height * imgWidth / imgHeight), ratio = imgHeight / _height;
-
+        canvas = &image;
         width = _width, height = _height;
+
+        glm::vec2 imgSize;
+        if (root->QueryFloatAttribute("width", &imgSize.x)) return 0;
+        if (root->QueryFloatAttribute("height", &imgSize.y)) return 0;
+
+        /* Calculate view box */
+        if (root->Attribute("viewBox")) {
+            auto viewbox = ParsePoints(root->Attribute("viewBox"));
+            auto size = viewbox[1] - viewbox[0];
+            float r = imgSize.x / imgSize.y;
+            if (size.x / size.y < r)
+                size.x = size.y * r;
+            else
+                size.y = size.x / r;
+            imgSize = size;
+        }
+
+        /* Calculate screen size */
+        if (width / imgSize.x < height / imgSize.y)
+            height = ceil(width * imgSize.y / imgSize.x), ratio = imgSize.x / width;
+        else
+            width = ceil(height * imgSize.x / imgSize.y), ratio = imgSize.y / height;
+
+        if (root->Attribute("viewBox")) {
+            auto viewbox = ParsePoints(root->Attribute("viewBox"));
+            view = (viewbox[0] + viewbox[1] - imgSize) / 2.0f / ratio;
+        }
+        else view = {0, 0};
+
+        // std::cerr << view.x << " " << view.y << std::endl;
+        // std::cerr << imgSize.x << " " << imgSize.y << std::endl;
+
+        _width = width, _height = height;
         image = Common::CreatePureImageRGB(width, height, { 1., 1., 1. });
 
-        for (auto child = root->FirstChildElement(); child != NULL; child = child->NextSiblingElement()) {
-            if (child->Name() == std::string("line"))
-                DrawLine(image, child);
-            if (child->Name() == std::string("rect"))
-                DrawRect(image, child);
-            if (child->Name() == std::string("polyline"))
-                DrawPolygon(image, child, 1);
-            if (child->Name() == std::string("polygon"))
-                DrawPolygon(image, child);
-            if (child->Name() == std::string("circle"))
-                DrawCircle(image, child);
-            if (child->Name() == std::string("path"))
-                DrawPath(image, child);
-        }
+        _render(root);
         return 1;
     }
 
-    void DrawLine(ImageRGB &image, const tinyxml2::XMLElement *path) {
+    void DrawLine(const tinyxml2::XMLElement *ele) {
         float x1, y1, x2, y2;
-        if (path->QueryFloatAttribute("x1", &x1)) return;
-        if (path->QueryFloatAttribute("y1", &y1)) return;
-        if (path->QueryFloatAttribute("x2", &x2)) return;
-        if (path->QueryFloatAttribute("y2", &y2)) return;
+        if (ele->QueryFloatAttribute("x1", &x1)) return;
+        if (ele->QueryFloatAttribute("y1", &y1)) return;
+        if (ele->QueryFloatAttribute("x2", &x2)) return;
+        if (ele->QueryFloatAttribute("y2", &y2)) return;
         x1 /= ratio, y1 /= ratio, x2 /= ratio, y2 /= ratio;
 
-        glm::vec4 color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
+        glm::vec4 color = GetColor(ele->Attribute("stroke"));
+        float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
         if (color.a > 0)
             if (width > 0)
-                _drawThickLine(image, color, { x1, y1 }, { x2, y2 }, width);
+                _drawThickLine(color, { x1, y1 }, { x2, y2 }, width);
             else
-                _drawLine(image, color, { x1, y1 }, { x2, y2 });
+                _drawLine(color, { x1, y1 }, { x2, y2 });
     }
 
-    void DrawRect(ImageRGB &image, const tinyxml2::XMLElement *path) {
+    void DrawRect(const tinyxml2::XMLElement *ele) {
         float x, y, w, h;
-        if (path->QueryFloatAttribute("x", &x)) return;
-        if (path->QueryFloatAttribute("y", &y)) return;
-        if (path->QueryFloatAttribute("width", &w)) return;
-        if (path->QueryFloatAttribute("height", &h)) return;
+        if (ele->QueryFloatAttribute("x", &x)) return;
+        if (ele->QueryFloatAttribute("y", &y)) return;
+        if (ele->QueryFloatAttribute("width", &w)) return;
+        if (ele->QueryFloatAttribute("height", &h)) return;
         x /= ratio, y /= ratio, w /= ratio, h /= ratio;
 
         /* Draw interior */
-        glm::vec4 color = GetColor(path->Attribute("fill"));
+        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(image, color, {
+            _drawPolygonFilled(color, {
                 { x, y },
                 { x + w, y },
                 { x + w, y + h },
@@ -72,18 +105,18 @@ namespace VCX::Labs::Project {
             });
         
         /* Draw outline */
-        color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 1) / ratio / 2;
+        color = GetColor(ele->Attribute("stroke"));
+        float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0) {
-            _drawThickLine(image, color, { x - width, y }, { x + w + width, y }, width);
-            _drawThickLine(image, color, { x - width, y + h }, { x + w + width, y + h }, width);
-            _drawThickLine(image, color, { x + w, y }, { x + w, y + h }, width);
-            _drawThickLine(image, color, { x, y + h }, { x, y }, width);
+            _drawThickLine(color, { x - width, y }, { x + w + width, y }, width);
+            _drawThickLine(color, { x - width, y + h }, { x + w + width, y + h }, width);
+            _drawThickLine(color, { x + w, y }, { x + w, y + h }, width);
+            _drawThickLine(color, { x, y + h }, { x, y }, width);
         }
     }
 
-    void DrawPolygon(ImageRGB &image, const tinyxml2::XMLElement *path, int isPolyline) {
-        auto points = ParsePoints(path->Attribute("points"));
+    void DrawPolygon(const tinyxml2::XMLElement *ele, int isPolyline) {
+        auto points = ParsePoints(ele->Attribute("points"));
         if (points.empty()){
             std::cout << "Empty polygon" << std::endl;
             return;
@@ -93,47 +126,48 @@ namespace VCX::Labs::Project {
         int n = points.size() - 1;
 
         /* Draw interior */
-        glm::vec4 color = GetColor(path->Attribute("fill"));
+        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(image, color, points);
+            _drawPolygonFilled(color, points);
 
         /* Draw outline */
-        color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
+        color = GetColor(ele->Attribute("stroke"));
+        float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
         if (color.a > 0)
             for (int i = 0; i < n - isPolyline; i++)
                 if (width > 0)
-                    _drawThickLine(image, color, points[i], points[i + 1], width);
+                    _drawThickLine(color, points[i], points[i + 1], width);
                 else
-                    _drawLine(image, color, points[i], points[i + 1]);
+                    _drawLine(color, points[i], points[i + 1]);
     }
 
-    void DrawCircle(ImageRGB &image, const tinyxml2::XMLElement *path) {
+    void DrawCircle(const tinyxml2::XMLElement *ele) {
         float cx, cy, r;
-        if (path->QueryFloatAttribute("cx", &cx)) return;
-        if (path->QueryFloatAttribute("cy", &cy)) return;
-        if (path->QueryFloatAttribute("r", &r)) return;
+        if (ele->QueryFloatAttribute("cx", &cx)) return;
+        if (ele->QueryFloatAttribute("cy", &cy)) return;
+        if (ele->QueryFloatAttribute("r", &r)) return;
         cx /= ratio, cy /= ratio, r /= ratio;
 
         /* Draw interior */
-        glm::vec4 color = GetColor(path->Attribute("fill"));
+        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawCircle(image, color, { cx, cy }, r);
+            _drawCircle(color, { cx, cy }, r);
 
         /* Draw outline */
-        color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 1) / ratio / 2;
+        color = GetColor(ele->Attribute("stroke"));
+        float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
-            _drawCircle(image, color, { cx, cy }, r + width, r - width);
+            _drawCircle(color, { cx, cy }, r + width, r - width);
     }
 
-    void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path) {
+    void DrawPath(const tinyxml2::XMLElement *ele) {
         float x = 0, y = 0;
-        std::vector<glm::vec2> points;
+        std::vector<std::vector<glm::vec2>> paths;
+        std::vector<glm::vec2> path;
         static float bx = 0, by = 0; // for Bezier shortcuts
         char lastCommand = 0;
         // std::cerr << "DrawPath" << std::endl;
-        const char *s = path->Attribute("d");
+        const char *s = ele->Attribute("d");
         int len = strlen(s);
         for (const char *i = s; i < s + len; i++) {
             // printf("%c\n", *i);
@@ -156,7 +190,7 @@ namespace VCX::Labs::Project {
                     x = p[0];
                     y = p[1];
                 }
-                points.push_back({ x, y });
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'L') {
                 auto p = ParseNumbers(i, 2);
@@ -168,25 +202,29 @@ namespace VCX::Labs::Project {
                     x = p[0];
                     y = p[1];
                 }
-                points.push_back({ x, y });
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'H') {
                 auto p = ParseNumbers(i, 1);
                 if (p.size() < 1) return;
                 if (command == 'h') x += p[0];
                 else x = p[0];
-                points.push_back({ x, y });
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'V') {
                 auto p = ParseNumbers(i, 1);
                 if (p.size() < 1) return;
                 if (command == 'v') y += p[0];
                 else y = p[0];
-                points.push_back({ x, y });
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'Z') {
-                if (points.empty()) return;
-                points.push_back(points[0]);
+                if (path.empty()) return;
+                path.push_back(path[0]);
+                x = path[0].x;
+                y = path[0].y;
+                // paths.push_back(path);
+                // path.clear();
             }
             else if (toupper(command) == 'C') {
                 auto p = ParseNumbers(i, 6);
@@ -199,11 +237,12 @@ namespace VCX::Labs::Project {
                     p[4] += x;
                     p[5] += y;
                 }
-                DivideBezier3(points, { x, y }, { p[0], p[1] }, { p[2], p[3] }, { p[4], p[5] });
+                DivideBezier3(path, { x, y }, { p[0], p[1] }, { p[2], p[3] }, { p[4], p[5] });
                 bx = p[2];
                 by = p[3];
                 x = p[4];
                 y = p[5];
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'S') {
                 auto p = ParseNumbers(i, 4);
@@ -218,11 +257,12 @@ namespace VCX::Labs::Project {
                     bx = 2 * x - bx, by = 2 * y - by;
                 else
                     bx = x, by = y;
-                DivideBezier3(points, { x, y }, { bx, by }, { p[0], p[1] }, { p[2], p[3] });
+                DivideBezier3(path, { x, y }, { bx, by }, { p[0], p[1] }, { p[2], p[3] });
                 bx = p[0];
                 by = p[1];
                 x = p[2];
                 y = p[3];
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'Q') {
                 auto p = ParseNumbers(i, 4);
@@ -233,11 +273,12 @@ namespace VCX::Labs::Project {
                     p[2] += x;
                     p[3] += y;
                 }
-                DivideBezier2(points, { x, y }, { p[0], p[1] }, { p[2], p[3] });
+                DivideBezier2(path, { x, y }, { p[0], p[1] }, { p[2], p[3] });
                 bx = p[0];
                 by = p[1];
                 x = p[2];
                 y = p[3];
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'T') {
                 auto p = ParseNumbers(i, 2);
@@ -250,11 +291,12 @@ namespace VCX::Labs::Project {
                     bx = 2 * x - bx, by = 2 * y - by;
                 else
                     bx = x, by = y;
-                DivideBezier2(points, { x, y }, { bx, by }, { p[0], p[1] });
+                DivideBezier2(path, { x, y }, { bx, by }, { p[0], p[1] });
                 bx = x;
                 by = y;
                 x = p[0];
                 y = p[1];
+                path.push_back({ x, y });
             }
             else if (toupper(command) == 'A') {
                 auto p = ParseNumbers(i, 7);
@@ -263,35 +305,43 @@ namespace VCX::Labs::Project {
                     p[5] += x;
                     p[6] += y;
                 }
-                CalcArc(points, { x, y }, { p[5], p[6] }, p[0], p[1], p[2], p[3], p[4]);
+                CalcArc(path, { x, y }, { p[5], p[6] }, p[0], p[1], p[2], p[3], p[4]);
                 x = p[5];
                 y = p[6];
             }
+            // printf("[%.5f %.5f]\n", x, y);
         }
+        if (!path.empty()) paths.push_back(path);
         
 
-        // for (auto &p : points)
-        //     std::cerr << p.x << " " << p.y << std::endl;
-        if (points.empty()) return;
-        for (auto &p : points) p /= ratio;
-        points.push_back(points[0]);
-        glm::vec4 color = GetColor(path->Attribute("fill"));
-        if (color.a > 0)
-            _drawPolygonFilled(image, color, points);
-        color = GetColor(path->Attribute("stroke"));
-        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
-        if (color.a > 0)
-            for (int i = 0; i < points.size() - 2; i++)
-                if (width > 0)
-                    _drawThickLine(image, color, points[i], points[i + 1], width);
-                else
-                    _drawLine(image, color, points[i], points[i + 1]);
+        for (auto &path : paths){
+            // for (auto &p : path)
+            //     std::cerr << p.x << " " << p.y << std::endl;
+            if (path.empty()) return;
+            for (auto &p : path) p /= ratio;
+            path.push_back(path[0]);
+            glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+            if (color.a > 0)
+                _drawPolygonFilled(color, path);
+            color = GetColor(ele->Attribute("stroke"));
+            float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
+            if (color.a > 0)
+                for (int i = 0; i < path.size() - 2; i++)
+                    if (width > 0)
+                        _drawThickLine(color, path[i], path[i + 1], width);
+                    else
+                        _drawLine(color, path[i], path[i + 1]);
+        }
     }
 
+    void _draw(glm::ivec2 p, glm::vec3 color) {
+        p -= view;
+        if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
+        canvas->SetAt({(std::size_t)p.x, (std::size_t)p.y}, color);
+    }
 
     /* From Lab 1 */
     void _drawLine(
-        ImageRGB &       canvas,
         glm::vec3 const  color,
         glm::ivec2 const p0,
         glm::ivec2 const p1) {
@@ -308,14 +358,14 @@ namespace VCX::Labs::Project {
             a.y = -a.y;
             b.y = -b.y;
         }
-        std::size_t y = a.y;
+        int y = a.y;
         int dx = 2*(b.x-a.x), dy = 2*(b.y-a.y);
         int dydx = dy-dx, F = dy-dx/2;
-        for (std::size_t x = a.x; x<=b.x; ++x){
-            std::size_t px = x, py = y;
+        for (int x = a.x; x<=b.x; ++x){
+            int px = x, py = y;
             if (flipY) py = -py;
             if (swapXY) std::swap(px, py);
-            canvas.SetAt({px, py}, color);
+            _draw({px, py}, color);
 
             if (F<0) F+=dy;
             else ++y, F += dydx;
@@ -323,48 +373,47 @@ namespace VCX::Labs::Project {
     }
     
     /* From Lab 1 */
-    void _drawTriangleFilled(
-        ImageRGB &       canvas,
-        glm::vec3 const  color,
-        glm::ivec2 const p0,
-        glm::ivec2 const p1,
-        glm::ivec2 const p2) {
+    // void _drawTriangleFilled(
+    //     glm::vec3 const  color,
+    //     glm::ivec2 const p0,
+    //     glm::ivec2 const p1,
+    //     glm::ivec2 const p2) {
             
-        glm::ivec2 a = p0, b = p1, c = p2;
-        if (a.x > b.x) std::swap(a, b);
-        if (a.x > c.x) std::swap(a, c);
-        if ((b.x-a.x)*(c.y-a.y) < (c.x-a.x)*(b.y-a.y)) std::swap(b, c);
-        for (int x = a.x; x <= b.x || x <= c.x; ++x){
-            int yl, yr;
-            if (x <= b.x) {
-                if (b.x == a.x) yl = std::min(a.y, b.y);
-                else yl = (a.y*(b.x-a.x) + (b.y-a.y)*(x-a.x) + b.x-a.x-1) / (b.x-a.x); // ceil
-            }
-            else yl = (b.y*(c.x-b.x) + (c.y-b.y)*(x-b.x) + c.x-b.x-1) / (c.x-b.x); // ceil
-            if (x <= c.x) {
-                if (c.x == a.x) yr = std::max(a.y, c.y);
-                else yr = (a.y*(c.x-a.x) + (c.y-a.y)*(x-a.x)) / (c.x-a.x); // floor
-            }
-            else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x); // floor
-            for (std::size_t y = yl; y<=yr; ++y)
-                if (0<=x && x < canvas.GetSizeX() && y < canvas.GetSizeY())
-                    canvas.SetAt({ (std::size_t)x, y }, color);
-        }
-    }
+    //     glm::ivec2 a = p0, b = p1, c = p2;
+    //     if (a.x > b.x) std::swap(a, b);
+    //     if (a.x > c.x) std::swap(a, c);
+    //     if ((b.x-a.x)*(c.y-a.y) < (c.x-a.x)*(b.y-a.y)) std::swap(b, c);
+    //     for (int x = a.x; x <= b.x || x <= c.x; ++x){
+    //         int yl, yr;
+    //         if (x <= b.x) {
+    //             if (b.x == a.x) yl = std::min(a.y, b.y);
+    //             else yl = (a.y*(b.x-a.x) + (b.y-a.y)*(x-a.x) + b.x-a.x-1) / (b.x-a.x); // ceil
+    //         }
+    //         else yl = (b.y*(c.x-b.x) + (c.y-b.y)*(x-b.x) + c.x-b.x-1) / (c.x-b.x); // ceil
+    //         if (x <= c.x) {
+    //             if (c.x == a.x) yr = std::max(a.y, c.y);
+    //             else yr = (a.y*(c.x-a.x) + (c.y-a.y)*(x-a.x)) / (c.x-a.x); // floor
+    //         }
+    //         else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x); // floor
+    //         for (int y = yl; y<=yr; ++y)
+    //             if (0<=x && x < width)
+    //                 _draw({ x, y }, color);
+    //     }
+    // }
 
     void _drawPolygonFilled(
-        ImageRGB &                     canvas,
         glm::vec3 const                color,
         std::vector<glm::vec2> const & points) {
 
         int n = points.size() - 1;
-        for (int x = 0; x < width; ++x) {
-            std::vector<int> ys;
+        for (int x = view.x; x < view.x + width; ++x) {
+            std::vector<float> ys;
             for (int i = 0; i < n; ++i) {
                 glm::vec2 const *p0 = &points[i], *p1 = &points[i+1];
                 if (p0->x > p1->x) std::swap(p0, p1);
                 if (p0->x <= x && x < p1->x) {
-                    float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                    // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                    float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
                     y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
                     ys.push_back(y);
                 }
@@ -374,14 +423,16 @@ namespace VCX::Labs::Project {
             //     for (int y: ys) printf("[%d]", y);
             //     printf("\n");
             // }
-            for (int i = 0; i < ys.size(); i += 2)
-                for (int y = std::max(0, ys[i]); y < ys[i + 1] && y < height; ++y)
-                    canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
+            for (int i = 0; i < ys.size(); i += 2){
+                for (int y = ceil(ys[i]); y <= ys[i + 1]; ++y)
+                    _draw({ x, y }, color);
+                // if (ys[i+1] - ys[i] < 2)
+                //     printf("[%.5f]\n", ys[i+1] - ys[i]);
+            }
         }
     }
 
     void _drawThickLine(
-        ImageRGB &       canvas,
         glm::vec3 const  color,
         glm::vec2 const p0,
         glm::vec2 const p1,
@@ -394,17 +445,16 @@ namespace VCX::Labs::Project {
         points.push_back(p1 - normal * width);
         points.push_back(p1 + normal * width);
         points.push_back(p0 + normal * width);
-        _drawPolygonFilled(canvas, color, points);
+        _drawPolygonFilled(color, points);
     }
 
     void _drawCircle(
-        ImageRGB &       canvas,
         glm::vec3 const  color,
         glm::vec2 const  center,
         float            r1,
         float            r2) {
         
-        for (int x = 0; x < width; ++x) if (fabs(x - center.x) <= r1) {
+        for (int x = view.x; x < view.x + width; ++x) if (fabs(x - center.x) <= r1) {
             float y1 = center.y - sqrt(r1*r1 - (x-center.x)*(x-center.x));
             float y2 = center.y + sqrt(r1*r1 - (x-center.x)*(x-center.x));
             float y3 = y1, y4 = y1;
@@ -412,10 +462,10 @@ namespace VCX::Labs::Project {
                 y3 = center.y - sqrt(r2*r2 - (x-center.x)*(x-center.x));
                 y4 = center.y + sqrt(r2*r2 - (x-center.x)*(x-center.x));
             }
-            for (int y = std::max(0.f, y1); y < y3 && y < height; ++y)
-                canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
-            for (int y = std::max(0.f, y4); y < y2 && y < height; ++y)
-                canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
+            for (int y = y1; y < y3; ++y)
+                _draw({ x, y }, color);
+            for (int y = y4; y < y2; ++y)
+                _draw({ x, y }, color);
         }
     }
 
@@ -426,13 +476,16 @@ namespace VCX::Labs::Project {
             if (!s[i] || std::string("0123456789.-+").find(s[i]) == std::string::npos || (s[i] == '-' && pos < i)) {
                 if (i != pos)
                     numbers.push_back(std::stof(std::string(s + pos, s + i)));
-                pos = i + 1;
+                pos = i + (s[i]!='-');
             }
             if (!s[i] || numbers.size() == n){
                 s += i - 1;
                 break;
             }
         }
+        // for (auto i: numbers)
+        //     printf("[%f]", i);
+        // printf("\n");
         return numbers;
     }
 
@@ -453,7 +506,8 @@ namespace VCX::Labs::Project {
         return {r / 255.0f, g / 255.0f, b / 255.0f, 1};
     }
 
-    glm::vec4 GetColor(const char *s){
+    glm::vec4 GetColor(const char *s, const char *defaultColor){
+        if (s == NULL) s = defaultColor;
         if (s == NULL) return glm::vec4(0);
         if (s[0] == '#') {
             if (strlen(s) == 7){
@@ -574,6 +628,7 @@ namespace VCX::Labs::Project {
             points.push_back(v);
             // std::cerr << v.x << " " << v.y << std::endl;
         }
+        points.push_back(p1 + p0);
         // puts("--------------------");
     }
 }

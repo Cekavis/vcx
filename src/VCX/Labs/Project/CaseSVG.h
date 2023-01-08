@@ -27,6 +27,6 @@ namespace VCX::Labs::Project {
         int  _height        = 0;
         bool _enableZoom    = true;
         bool _recompute     = true;
-        char _filePath[256] = "C:\\Users\\cekav\\Documents\\Cekavis\\Build\\VCL\\Lab\\vcx\\assets\\images\\basic_shapes.svg";
+        char _filePath[256] = "C:\\Users\\cekav\\Documents\\Cekavis\\Build\\VCL\\Lab\\vcx\\assets\\images\\TikTok.svg";
     };
 }

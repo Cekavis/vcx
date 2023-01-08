@@ -37,6 +37,7 @@ namespace VCX::Labs::Project {
             auto tex { Common::CreateCheckboardImageRGB(320, 320) };
 
             tinyxml2::XMLDocument doc;
+            // std::cerr << "Loading SVG file: " << _filePath << std::endl;
             if (doc.LoadFile(_filePath)) {
                 std::cerr << "Failed to load SVG file: " << _filePath << std::endl;
             }

@@ -128,7 +128,164 @@ namespace VCX::Labs::Project {
     }
 
     void DrawPath(ImageRGB &image, const tinyxml2::XMLElement *path) {
+        float x = 0, y = 0;
+        std::vector<glm::vec2> points;
+        static float bx = 0, by = 0; // for Bezier shortcuts
+        char lastCommand = 0;
+        // std::cerr << "DrawPath" << std::endl;
+        const char *s = path->Attribute("d");
+        int len = strlen(s);
+        for (const char *i = s; i < s + len; i++) {
+            // printf("%c\n", *i);
+            char command = 0;
+            if (!isspace(*i)) {
+                if (isalpha(*i)){
+                    command = *i++;
+                    lastCommand = command;
+                }
+                else command = lastCommand;//, printf("[%c]", command);
+            }
+            // if (command) std::cerr << "Command: " << command << std::endl;
+            if (toupper(command) == 'M') {
+                auto p = ParseNumbers(i, 2);
+                if (p.size() < 2) return;
+                if (command == 'm') {
+                    x += p[0];
+                    y += p[1];
+                } else {
+                    x = p[0];
+                    y = p[1];
+                }
+                points.push_back({ x, y });
+            }
+            else if (toupper(command) == 'L') {
+                auto p = ParseNumbers(i, 2);
+                if (p.size() < 2) return;
+                if (command == 'l') {
+                    x += p[0];
+                    y += p[1];
+                } else {
+                    x = p[0];
+                    y = p[1];
+                }
+                points.push_back({ x, y });
+            }
+            else if (toupper(command) == 'H') {
+                auto p = ParseNumbers(i, 1);
+                if (p.size() < 1) return;
+                if (command == 'h') x += p[0];
+                else x = p[0];
+                points.push_back({ x, y });
+            }
+            else if (toupper(command) == 'V') {
+                auto p = ParseNumbers(i, 1);
+                if (p.size() < 1) return;
+                if (command == 'v') y += p[0];
+                else y = p[0];
+                points.push_back({ x, y });
+            }
+            else if (toupper(command) == 'Z') {
+                if (points.empty()) return;
+                points.push_back(points[0]);
+            }
+            else if (toupper(command) == 'C') {
+                auto p = ParseNumbers(i, 6);
+                if (p.size() < 6) return;
+                if (command == 'c') {
+                    p[0] += x;
+                    p[1] += y;
+                    p[2] += x;
+                    p[3] += y;
+                    p[4] += x;
+                    p[5] += y;
+                }
+                DivideBezier3(points, { x, y }, { p[0], p[1] }, { p[2], p[3] }, { p[4], p[5] });
+                bx = p[2];
+                by = p[3];
+                x = p[4];
+                y = p[5];
+            }
+            else if (toupper(command) == 'S') {
+                auto p = ParseNumbers(i, 4);
+                if (p.size() < 4) return;
+                if (command == 's') {
+                    p[0] += x;
+                    p[1] += y;
+                    p[2] += x;
+                    p[3] += y;
+                }
+                if (toupper(lastCommand) == 'C' || toupper(lastCommand) == 'S')
+                    bx = 2 * x - bx, by = 2 * y - by;
+                else
+                    bx = x, by = y;
+                DivideBezier3(points, { x, y }, { bx, by }, { p[0], p[1] }, { p[2], p[3] });
+                bx = p[0];
+                by = p[1];
+                x = p[2];
+                y = p[3];
+            }
+            else if (toupper(command) == 'Q') {
+                auto p = ParseNumbers(i, 4);
+                if (p.size() < 4) return;
+                if (command == 'q') {
+                    p[0] += x;
+                    p[1] += y;
+                    p[2] += x;
+                    p[3] += y;
+                }
+                DivideBezier2(points, { x, y }, { p[0], p[1] }, { p[2], p[3] });
+                bx = p[0];
+                by = p[1];
+                x = p[2];
+                y = p[3];
+            }
+            else if (toupper(command) == 'T') {
+                auto p = ParseNumbers(i, 2);
+                if (p.size() < 2) return;
+                if (command == 't') {
+                    p[0] += x;
+                    p[1] += y;
+                }
+                if (toupper(lastCommand) == 'Q' || toupper(lastCommand) == 'T')
+                    bx = 2 * x - bx, by = 2 * y - by;
+                else
+                    bx = x, by = y;
+                DivideBezier2(points, { x, y }, { bx, by }, { p[0], p[1] });
+                bx = x;
+                by = y;
+                x = p[0];
+                y = p[1];
+            }
+            else if (toupper(command) == 'A') {
+                auto p = ParseNumbers(i, 7);
+                if (p.size() < 7) return;
+                if (command == 'a') {
+                    p[5] += x;
+                    p[6] += y;
+                }
+                CalcArc(points, { x, y }, { p[5], p[6] }, p[0], p[1], p[2], p[3], p[4]);
+                x = p[5];
+                y = p[6];
+            }
+        }
+        
 
+        // for (auto &p : points)
+        //     std::cerr << p.x << " " << p.y << std::endl;
+        if (points.empty()) return;
+        for (auto &p : points) p /= ratio;
+        points.push_back(points[0]);
+        glm::vec4 color = GetColor(path->Attribute("fill"));
+        if (color.a > 0)
+            _drawPolygonFilled(image, color, points);
+        color = GetColor(path->Attribute("stroke"));
+        float width = path->FloatAttribute("stroke-width", 0) / ratio / 2;
+        if (color.a > 0)
+            for (int i = 0; i < points.size() - 2; i++)
+                if (width > 0)
+                    _drawThickLine(image, color, points[i], points[i + 1], width);
+                else
+                    _drawLine(image, color, points[i], points[i + 1]);
     }
 
 
@@ -207,13 +364,18 @@ namespace VCX::Labs::Project {
                 glm::vec2 const *p0 = &points[i], *p1 = &points[i+1];
                 if (p0->x > p1->x) std::swap(p0, p1);
                 if (p0->x <= x && x < p1->x) {
-                    int y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                    float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                    y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
                     ys.push_back(y);
                 }
             }
             std::sort(ys.begin(), ys.end());
+            // if (!ys.empty()){
+            //     for (int y: ys) printf("[%d]", y);
+            //     printf("\n");
+            // }
             for (int i = 0; i < ys.size(); i += 2)
-                for (int y = ys[i]; y <= ys[i + 1]; ++y)
+                for (int y = std::max(0, ys[i]); y < ys[i + 1] && y < height; ++y)
                     canvas.SetAt({ (std::size_t)x, (std::size_t)y }, color);
         }
     }
@@ -257,18 +419,25 @@ namespace VCX::Labs::Project {
         }
     }
 
-    std::vector<glm::vec2> ParsePoints(const char *s){
+    std::vector<float> ParseNumbers(const char *&s, int n){
         std::vector<float> numbers;
         int pos = 0;
         for (int i = 0;; ++i) {
-            if (s[i] == ' ' || s[i] == ',' || !s[i]) {
+            if (!s[i] || std::string("0123456789.-+").find(s[i]) == std::string::npos || (s[i] == '-' && pos < i)) {
                 if (i != pos)
                     numbers.push_back(std::stof(std::string(s + pos, s + i)));
                 pos = i + 1;
             }
-            if (!s[i]) break;
+            if (!s[i] || numbers.size() == n){
+                s += i - 1;
+                break;
+            }
         }
+        return numbers;
+    }
 
+    std::vector<glm::vec2> ParsePoints(const char *s){
+        auto numbers = ParseNumbers(s);
         if (numbers.size() % 2 != 0)
             std::cerr << "ParsePoints: odd number of numbers in points string\n";
         std::vector<glm::vec2> points;
@@ -317,9 +486,94 @@ namespace VCX::Labs::Project {
         else if (strcmp(s, "orange" ) == 0) return GetColorFromHex("ffa500");
 
         else if (strcmp(s, "transparent") == 0) return glm::vec4(0);
+        else if (strcmp(s, "none") == 0) return glm::vec4(0);
         else {
             std::cerr << "GetColor: invalid color string\n";
             return {0, 0, 0, 0};
         }
+    }
+    
+    void DivideBezier3(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {
+        glm::vec2 p01 = (p0 + p1) * 0.5f;
+        glm::vec2 p12 = (p1 + p2) * 0.5f;
+        glm::vec2 p23 = (p2 + p3) * 0.5f;
+        glm::vec2 p012 = (p01 + p12) * 0.5f;
+        glm::vec2 p123 = (p12 + p23) * 0.5f;
+        glm::vec2 p0123 = (p012 + p123) * 0.5f;
+        if (glm::length(p0123 - p0) < ratio && glm::length(p0123 - p3) < ratio) {
+            points.push_back(p0123);
+        } else {
+            DivideBezier3(points, p0, p01, p012, p0123);
+            DivideBezier3(points, p0123, p123, p23, p3);
+        }
+    }
+
+    void DivideBezier2(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2) {
+        glm::vec2 p01 = (p0 + p1) * 0.5f;
+        glm::vec2 p12 = (p1 + p2) * 0.5f;
+        glm::vec2 p012 = (p01 + p12) * 0.5f;
+        if (glm::length(p012 - p0) < ratio && glm::length(p012 - p2) < ratio) {
+            points.push_back(p012);
+        } else {
+            DivideBezier2(points, p0, p01, p012);
+            DivideBezier2(points, p012, p12, p2);
+        }
+    }
+
+    glm::vec2 Rotate(glm::vec2 p, float angle) {
+        float c = cos(angle);
+        float s = sin(angle);
+        return {p.x * c - p.y * s, p.x * s + p.y * c};
+    }
+
+    void DivideArc(glm::vec2 center, float l, float r, std::vector<glm::vec2> &p, float th){
+        glm::vec2 p0 = {cos(l), sin(l)};
+        glm::vec2 p1 = {cos(r), sin(r)};
+        if (glm::length(p1 - p0) > th || fabs(r - l) > 1){
+            float m = (l + r) * 0.5f;
+            DivideArc(center, l, m, p, th);
+            DivideArc(center, m, r, p, th);
+        } else {
+            p.push_back(center + p1);
+        }
+    }
+
+    void CalcArc(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, float rx, float ry, float rotation, int largeArc, int sweep) {
+        rotation = glm::radians(rotation);
+        p1 = Rotate(p1 - p0, -rotation);
+        p1.x /= rx;
+        p1.y /= ry;
+        // std::cerr << p1.x << " " << p1.y << std::endl;
+        float xxyy = p1.x * p1.x + p1.y * p1.y;
+        // std::cerr << xxyy << std::endl;
+        if (xxyy > 4) {
+            float k = sqrt(xxyy) / 2;
+            p1 /= k;
+            rx *= k;
+            ry *= k;
+            xxyy = 4;
+        }
+        glm::vec2 center;
+        center.x = (p1.x - p1.y * sqrt((4 - xxyy) * xxyy) / xxyy) / 2;
+        center.y = (p1.y + p1.x * sqrt((4 - xxyy) * xxyy) / xxyy) / 2;
+        if ((largeArc == 1) ^ (sweep == 1) ^ (center.x * p1.y - center.y * p1.x < 0))
+            center = p1 - center;
+        // std::cerr << center.x << " " << center.y << std::endl;
+        std::vector<glm::vec2> p;
+        float l = atan2(-center.y, -center.x);
+        float r = atan2(p1.y - center.y, p1.x - center.x);
+        if (sweep == 0) std::swap(l, r);
+        if (l > r) r += 2 * acos(-1);
+        if (sweep == 0) std::swap(l, r);
+        // std::cerr << l << ' ' << r << std::endl;
+        DivideArc(center, l, r, p, ratio / (rx + ry));
+        for (auto &v : p){
+            v.x *= rx;
+            v.y *= ry;
+            v = Rotate(v, rotation) + p0;
+            points.push_back(v);
+            // std::cerr << v.x << " " << v.y << std::endl;
+        }
+        // puts("--------------------");
     }
 }

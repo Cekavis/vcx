@@ -31,14 +31,15 @@ namespace VCX::Labs::Project {
         canvas = &image;
         width = _width, height = _height;
 
-        glm::vec2 imgSize;
-        if (root->QueryFloatAttribute("width", &imgSize.x)) return 0;
-        if (root->QueryFloatAttribute("height", &imgSize.y)) return 0;
+        glm::vec2 imgSize(0);
+        root->QueryFloatAttribute("width", &imgSize.x);
+        root->QueryFloatAttribute("height", &imgSize.y);
 
         /* Calculate view box */
         if (root->Attribute("viewBox")) {
             auto viewbox = ParsePoints(root->Attribute("viewBox"));
             auto size = viewbox[1] - viewbox[0];
+            if (imgSize.y == 0) imgSize = size;
             float r = imgSize.x / imgSize.y;
             if (size.x / size.y < r)
                 size.x = size.y * r;

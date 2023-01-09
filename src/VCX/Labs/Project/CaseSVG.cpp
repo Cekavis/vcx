@@ -19,6 +19,21 @@ namespace VCX::Labs::Project {
     }
 
     void CaseSVG::OnSetupPropsUI() {
+        if (ImGui::BeginCombo("Model", GetModelName(_modelIdx))) {
+            for (std::size_t i = 0; i < _models.size(); ++i) {
+                bool selected = i == _modelIdx;
+                if (ImGui::Selectable(GetModelName(i), selected)) {
+                    if (! selected) {
+                        _modelIdx  = i;
+                        _recompute = true;
+                    }
+                }
+            }
+            ImGui::EndCombo();
+        }
+        Common::ImGuiHelper::SaveImage(_viewer.GetTexture(), _viewer.GetSize(), true);
+        ImGui::Spacing();
+
         ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
         ImGui::InputText("File Path", _filePath, sizeof(_filePath));
     }

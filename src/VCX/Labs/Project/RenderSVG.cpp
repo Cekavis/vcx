@@ -79,7 +79,7 @@ namespace VCX::Labs::Project {
         x1 /= ratio, y1 /= ratio, x2 /= ratio, y2 /= ratio;
 
         glm::vec4 color = GetColor(ele->Attribute("stroke"));
-        float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
+        float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
             if (width > 0)
                 _drawThickLine(color, { x1, y1 }, { x2, y2 }, width);
@@ -98,12 +98,12 @@ namespace VCX::Labs::Project {
         /* Draw interior */
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(color, {
+            _drawPolygonFilled(color, {std::vector<glm::vec2>({
                 { x, y },
                 { x + w, y },
                 { x + w, y + h },
                 { x, y + h }
-            });
+            })});
         
         /* Draw outline */
         color = GetColor(ele->Attribute("stroke"));
@@ -129,11 +129,11 @@ namespace VCX::Labs::Project {
         /* Draw interior */
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(color, points);
+            _drawPolygonFilled(color, {points});
 
         /* Draw outline */
         color = GetColor(ele->Attribute("stroke"));
-        float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
+        float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
             for (int i = 0; i < n - isPolyline; i++)
                 if (width > 0)
@@ -177,10 +177,12 @@ namespace VCX::Labs::Project {
                 if (isalpha(*i)){
                     command = *i++;
                     lastCommand = command;
+                    if (command == 'M') lastCommand = 'L';
+                    if (command == 'm') lastCommand = 'l';
                 }
                 else command = lastCommand;//, printf("[%c]", command);
             }
-            // if (command) std::cerr << "Command: " << command << std::endl;
+            if (command) std::cerr << "Command: " << command << std::endl;
             if (toupper(command) == 'M') {
                 auto p = ParseNumbers(i, 2);
                 if (p.size() < 2) return;
@@ -190,6 +192,10 @@ namespace VCX::Labs::Project {
                 } else {
                     x = p[0];
                     y = p[1];
+                }
+                if (!path.empty()){
+                    paths.push_back(path);
+                    path.clear();
                 }
                 path.push_back({ x, y });
             }
@@ -224,8 +230,6 @@ namespace VCX::Labs::Project {
                 path.push_back(path[0]);
                 x = path[0].x;
                 y = path[0].y;
-                // paths.push_back(path);
-                // path.clear();
             }
             else if (toupper(command) == 'C') {
                 auto p = ParseNumbers(i, 6);
@@ -321,11 +325,17 @@ namespace VCX::Labs::Project {
             if (path.empty()) return;
             for (auto &p : path) p /= ratio;
             path.push_back(path[0]);
-            glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
-            if (color.a > 0)
-                _drawPolygonFilled(color, path);
+        }
+
+        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+        if (color.a > 0)
+            for (auto &path : paths)
+                _drawPolygonFilled(color, {path});
+            // _drawPolygonFilled(color, paths);
+        
+        for (auto &path : paths){
             color = GetColor(ele->Attribute("stroke"));
-            float width = ele->FloatAttribute("stroke-width", 0) / ratio / 2;
+            float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
             if (color.a > 0)
                 for (int i = 0; i < path.size() - 2; i++)
                     if (width > 0)
@@ -403,20 +413,22 @@ namespace VCX::Labs::Project {
     // }
 
     void _drawPolygonFilled(
-        glm::vec3 const                color,
-        std::vector<glm::vec2> const & points) {
+        glm::vec3 const                             color,
+        std::vector<std::vector<glm::vec2>> const & polygons) {
 
-        int n = points.size() - 1;
         for (int x = view.x; x < view.x + width; ++x) {
             std::vector<float> ys;
-            for (int i = 0; i < n; ++i) {
-                glm::vec2 const *p0 = &points[i], *p1 = &points[i+1];
-                if (p0->x > p1->x) std::swap(p0, p1);
-                if (p0->x <= x && x < p1->x) {
-                    // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
-                    float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
-                    y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
-                    ys.push_back(y);
+            for (auto const &polygon : polygons) {
+                int n = polygon.size() - 1;
+                for (int i = 0; i < n; ++i) {
+                    glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
+                    if (p0->x > p1->x) std::swap(p0, p1);
+                    if (p0->x <= x && x < p1->x) {
+                        // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                        float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
+                        y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
+                        ys.push_back(y);
+                    }
                 }
             }
             std::sort(ys.begin(), ys.end());
@@ -446,7 +458,7 @@ namespace VCX::Labs::Project {
         points.push_back(p1 - normal * width);
         points.push_back(p1 + normal * width);
         points.push_back(p0 + normal * width);
-        _drawPolygonFilled(color, points);
+        _drawPolygonFilled(color, {points});
     }
 
     void _drawCircle(

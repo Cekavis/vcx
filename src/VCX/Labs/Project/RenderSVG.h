@@ -16,7 +16,7 @@ namespace VCX::Labs::Project {
 
     void _drawLine(glm::vec3, glm::ivec2, glm::ivec2);
     void _drawTriangleFilled(glm::vec3, glm::ivec2, glm::ivec2, glm::ivec2);
-    void _drawPolygonFilled(glm::vec3, std::vector<glm::vec2> const &);
+    void _drawPolygonFilled(glm::vec3, std::vector<std::vector<glm::vec2>> const &);
     void _drawThickLine(glm::vec3, glm::vec2, glm::vec2, float);
     void _drawCircle(glm::vec3, glm::vec2, float, float = 0);
 

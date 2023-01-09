@@ -1,4 +1,4 @@
-#include "Assets/bundled.hpp"
+#include "Assets/bundled.h"
 #include "Labs/Project/App.h"
 
 int main() {

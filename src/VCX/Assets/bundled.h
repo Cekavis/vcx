@@ -1,3 +1,5 @@
+#pragma once
+
 #include <array>
 #include <string_view>
 
@@ -18,17 +20,18 @@ namespace VCX::Assets {
     inline constexpr auto ExampleSVGs {
         std::to_array<std::string_view>({
             "assets/svgs/TikTok.svg",
-            "assets/svgs/Peking_University_seal.svg",
-            "assets/svgs/blog_logo.svg",
-            "assets/svgs/basic_shapes.svg",
-            "assets/svgs/arcs2.svg",
+            "assets/svgs/Peking University.svg",
+            "assets/svgs/Handwritten Text.svg",
+            "assets/svgs/Basic Shapes.svg",
+            "assets/svgs/Arcs.svg",
         })
     };
 
     enum class ExampleSVG {
         TikTok,
-        Peking University,
-        Hand Written text,
-        
+        PekingUniversity,
+        HandwrittenText,
+        BasicShapes,
+        Arcs,
     };
 }

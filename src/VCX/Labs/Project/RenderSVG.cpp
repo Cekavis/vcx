@@ -182,7 +182,7 @@ namespace VCX::Labs::Project {
                 }
                 else command = lastCommand;//, printf("[%c]", command);
             }
-            if (command) std::cerr << "Command: " << command << std::endl;
+            // if (command) std::cerr << "Command: " << command << std::endl;
             if (toupper(command) == 'M') {
                 auto p = ParseNumbers(i, 2);
                 if (p.size() < 2) return;
@@ -329,9 +329,9 @@ namespace VCX::Labs::Project {
 
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            for (auto &path : paths)
-                _drawPolygonFilled(color, {path});
-            // _drawPolygonFilled(color, paths);
+            // for (auto &path : paths)
+            //     _drawPolygonFilled(color, {path});
+            _drawPolygonFilled(color, paths);
         
         for (auto &path : paths){
             color = GetColor(ele->Attribute("stroke"));

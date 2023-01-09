@@ -3,6 +3,7 @@
 namespace VCX::Labs::Project {
 
     App::App() :
+        _caseSVG({ Assets::ExampleSVG::TikTok, Assets::ExampleSVG::PekingUniversity, Assets::ExampleSVG::HandwrittenText, Assets::ExampleSVG::BasicShapes, Assets::ExampleSVG::Arcs }),
         _ui(Labs::Common::UIOptions { }) {
     }
 

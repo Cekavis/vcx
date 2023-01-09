@@ -9,7 +9,8 @@
 
 namespace VCX::Labs::Project {
 
-    CaseSVG::CaseSVG() {
+    CaseSVG::CaseSVG(std::initializer_list<Assets::ExampleSVG> && SVGs) {
+        _SVGs = SVGs;
         gl_using(_texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -19,23 +20,21 @@ namespace VCX::Labs::Project {
     }
 
     void CaseSVG::OnSetupPropsUI() {
-        if (ImGui::BeginCombo("Model", GetModelName(_modelIdx))) {
-            for (std::size_t i = 0; i < _models.size(); ++i) {
-                bool selected = i == _modelIdx;
-                if (ImGui::Selectable(GetModelName(i), selected)) {
+        if (ImGui::BeginCombo("SVG", GetSVGName(_SVGIdx).c_str())) {
+            for (std::size_t i = 0; i < _SVGs.size(); ++i) {
+                bool selected = i == _SVGIdx;
+                if (ImGui::Selectable(GetSVGName(i).c_str(), selected)) {
                     if (! selected) {
-                        _modelIdx  = i;
+                        _SVGIdx  = i;
                         _recompute = true;
                     }
                 }
             }
             ImGui::EndCombo();
         }
-        Common::ImGuiHelper::SaveImage(_viewer.GetTexture(), _viewer.GetSize(), true);
         ImGui::Spacing();
 
         ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
-        ImGui::InputText("File Path", _filePath, sizeof(_filePath));
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
@@ -52,21 +51,21 @@ namespace VCX::Labs::Project {
             auto tex { Common::CreateCheckboardImageRGB(320, 320) };
 
             tinyxml2::XMLDocument doc;
-            // std::cerr << "Loading SVG file: " << _filePath << std::endl;
-            if (doc.LoadFile(_filePath)) {
-                std::cerr << "Failed to load SVG file: " << _filePath << std::endl;
+            std::cerr << "Loading SVG file: " << GetSVGName(_SVGIdx) << std::endl;
+            if (doc.LoadFile(std::filesystem::path(Assets::ExampleSVGs[_SVGIdx]).string().c_str())) {
+                std::cerr << "Failed to load SVG file: " << GetSVGName(_SVGIdx) << std::endl;
             }
             else {
                 auto const * root = doc.FirstChildElement("svg");
                 if (!root) {
-                    std::cerr << "Failed to find root element in SVG file: " << _filePath << std::endl;
+                    std::cerr << "Failed to find root element in SVG file: " << GetSVGName(_SVGIdx) << std::endl;
                 }
                 else {
                     if (render(tex, root, width, height)) {
                         _width = width;
                         _height = height;
                     }
-                    else std::cerr << "Failed to render SVG file: " << _filePath << std::endl;
+                    else std::cerr << "Failed to render SVG file: " << GetSVGName(_SVGIdx) << std::endl;
                 }
             }
 

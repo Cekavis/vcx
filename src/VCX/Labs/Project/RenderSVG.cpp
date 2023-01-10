@@ -313,6 +313,7 @@ namespace VCX::Labs::Project {
                 CalcArc(path, { x, y }, { p[5], p[6] }, p[0], p[1], p[2], p[3], p[4]);
                 x = p[5];
                 y = p[6];
+                path.push_back({ x, y });
             }
             // printf("[%.5f %.5f]\n", x, y);
         }
@@ -414,33 +415,61 @@ namespace VCX::Labs::Project {
 
     void _drawPolygonFilled(
         glm::vec3 const                             color,
-        std::vector<std::vector<glm::vec2>> const & polygons) {
+        std::vector<std::vector<glm::vec2>> const & polygons,
+        int                                         rule) {
 
         for (int x = view.x; x < view.x + width; ++x) {
-            std::vector<float> ys;
-            for (auto const &polygon : polygons) {
-                int n = polygon.size() - 1;
-                for (int i = 0; i < n; ++i) {
-                    glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
-                    if (p0->x > p1->x) std::swap(p0, p1);
-                    if (p0->x <= x && x < p1->x) {
-                        // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
-                        float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
-                        y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
-                        ys.push_back(y);
+            if (rule == 0){
+                /* nonzero */
+                std::vector<std::pair<float, int>> ys;
+                for (auto const &polygon : polygons) {
+                    int n = polygon.size() - 1;
+                    for (int i = 0; i < n; ++i) {
+                        glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
+                        int t = 1;
+                        if (p0->x > p1->x) std::swap(p0, p1), t = -1;
+                        if (p0->x <= x && x < p1->x) {
+                            float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
+                            y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
+                            ys.emplace_back(y, t);
+                        }
                     }
                 }
+                std::sort(ys.begin(), ys.end());
+                for (int i = 0, t = 0; i < ys.size(); ++i){
+                    t += ys[i].second;
+                    if (t != 0)
+                        for (int y = ceil(ys[i].first); y <= ys[i + 1].first; ++y)
+                            _draw({ x, y }, color);
+                }
             }
-            std::sort(ys.begin(), ys.end());
-            // if (!ys.empty()){
-            //     for (int y: ys) printf("[%d]", y);
-            //     printf("\n");
-            // }
-            for (int i = 0; i < ys.size(); i += 2){
-                for (int y = ceil(ys[i]); y <= ys[i + 1]; ++y)
-                    _draw({ x, y }, color);
-                // if (ys[i+1] - ys[i] < 2)
-                //     printf("[%.5f]\n", ys[i+1] - ys[i]);
+            else{
+                /* evenodd */
+                std::vector<float> ys;
+                for (auto const &polygon : polygons) {
+                    int n = polygon.size() - 1;
+                    for (int i = 0; i < n; ++i) {
+                        glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
+                        if (p0->x > p1->x) std::swap(p0, p1);
+                        if (p0->x <= x && x < p1->x) {
+                            // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
+                            float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
+                            y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
+                            ys.push_back(y);
+                        }
+                    }
+                }
+                std::sort(ys.begin(), ys.end());
+                // if (!ys.empty()){
+                //     for (int y: ys) printf("[%d]", y);
+                //     printf("\n");
+                // }
+                for (int i = 0; i < ys.size(); i += 2){
+                    for (int y = ceil(ys[i]); y <= ys[i + 1]; ++y)
+                        _draw({ x, y }, color);
+                    // if (ys[i+1] - ys[i] < 2)
+                    //     printf("[%.5f]\n", ys[i+1] - ys[i]);
+                }
             }
         }
     }
@@ -451,6 +480,7 @@ namespace VCX::Labs::Project {
         glm::vec2 const p1,
         float            width) {
         
+        if (glm::length(p1 - p0) < 0.1f) return;
         std::vector<glm::vec2> points;
         glm::vec2 normal = glm::normalize(glm::vec2(p1.y - p0.y, p0.x - p1.x));
         points.push_back(p0 + normal * width);
@@ -641,7 +671,6 @@ namespace VCX::Labs::Project {
             points.push_back(v);
             // std::cerr << v.x << " " << v.y << std::endl;
         }
-        points.push_back(p1 + p0);
         // puts("--------------------");
     }
 }

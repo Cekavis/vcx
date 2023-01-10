@@ -38,8 +38,8 @@ namespace VCX::Labs::Project {
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
-        std::uint32_t width = desiredSize.first - 40;
-        std::uint32_t height = desiredSize.second - 40;
+        std::uint32_t width = std::max(100, (int)desiredSize.first - 40);
+        std::uint32_t height = std::max(100, (int)desiredSize.second - 40);
         if (width != _windowWidth || height != _windowHeight) {
             _windowWidth = width;
             _windowHeight = height;

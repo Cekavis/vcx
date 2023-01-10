@@ -38,7 +38,7 @@ namespace VCX::Labs::Project {
         /* Calculate view box */
         if (root->Attribute("viewBox")) {
             auto viewbox = ParsePoints(root->Attribute("viewBox"));
-            auto size = viewbox[1] - viewbox[0];
+            auto size = viewbox[1];
             if (imgSize.y == 0) imgSize = size;
             float r = imgSize.x / imgSize.y;
             if (size.x / size.y < r)
@@ -78,7 +78,7 @@ namespace VCX::Labs::Project {
         if (ele->QueryFloatAttribute("y2", &p2.y)) return;
         p1 /= ratio, p2 /= ratio;
 
-        glm::vec4 color = GetColor(ele->Attribute("stroke"));
+        glm::vec4 color = GetColor(ele, "stroke");
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
             _drawPolyline(color, {p1, p2}, width);
@@ -93,7 +93,7 @@ namespace VCX::Labs::Project {
         x /= ratio, y /= ratio, w /= ratio, h /= ratio;
 
         /* Draw interior */
-        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+        glm::vec4 color = GetColor(ele, "fill");
         if (color.a > 0)
             _drawPolygonFilled(color, {std::vector<glm::vec2>({
                 { x, y },
@@ -103,7 +103,7 @@ namespace VCX::Labs::Project {
             })});
         
         /* Draw outline */
-        color = GetColor(ele->Attribute("stroke"));
+        color = GetColor(ele, "stroke");
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0) {
             _drawPolyline(color, std::vector<glm::vec2>({
@@ -134,12 +134,12 @@ namespace VCX::Labs::Project {
         const char *fillRule = ele->Attribute("fill-rule");
         int rule = 0;
         if (fillRule && strcmp(fillRule, "evenodd") == 0) rule = 1;
-        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+        glm::vec4 color = GetColor(ele, "fill");
         if (color.a > 0)
             _drawPolygonFilled(color, {points}, rule);
 
         /* Draw outline */
-        color = GetColor(ele->Attribute("stroke"));
+        color = GetColor(ele, "stroke");
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0){
             if (isPolyline) points.pop_back();
@@ -155,12 +155,12 @@ namespace VCX::Labs::Project {
         cx /= ratio, cy /= ratio, r /= ratio;
 
         /* Draw interior */
-        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+        glm::vec4 color = GetColor(ele, "fill");
         if (color.a > 0)
             _drawCircle(color, { cx, cy }, r);
 
         /* Draw outline */
-        color = GetColor(ele->Attribute("stroke"));
+        color = GetColor(ele, "stroke");
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
             _drawCircle(color, { cx, cy }, r + width, r - width);
@@ -341,12 +341,12 @@ namespace VCX::Labs::Project {
         const char *fillRule = ele->Attribute("fill-rule");
         int rule = 0;
         if (fillRule && strcmp(fillRule, "evenodd") == 0) rule = 1;
-        glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
+        glm::vec4 color = GetColor(ele, "fill");
         if (color.a > 0)
             _drawPolygonFilled(color, paths, rule);
         
         for (auto &path : paths){
-            color = GetColor(ele->Attribute("stroke"));
+            color = GetColor(ele, "stroke");
             float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
             if (color.a > 0){
                 path.pop_back();
@@ -355,14 +355,15 @@ namespace VCX::Labs::Project {
         }
     }
 
-    void _draw(glm::ivec2 p, glm::vec3 color) {
+    void _draw(glm::ivec2 p, glm::vec4 color) {
         p -= view;
         if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
-        canvas->SetAt({(std::size_t)p.x, (std::size_t)p.y}, color);
+        std::array<size_t, 2> P = {(std::size_t)p.x, (std::size_t)p.y};
+        canvas->SetAt(P, glm::vec3(color) * color.a + canvas->GetAt(P) * (1 - color.a));
     }
 
     void _drawPolygonFilled(
-        glm::vec3 const                             color,
+        glm::vec4 const                             color,
         std::vector<std::vector<glm::vec2>> const & polygons,
         int                                         rule) {
 
@@ -423,7 +424,7 @@ namespace VCX::Labs::Project {
     }
 
     void _drawPolyline(
-        glm::vec3 const  color,
+        glm::vec4 const  color,
         std::vector<glm::vec2> const p,
         float            width) {
         
@@ -444,7 +445,7 @@ namespace VCX::Labs::Project {
     }
 
     void _drawCircle(
-        glm::vec3 const  color,
+        glm::vec4 const  color,
         glm::vec2 const  center,
         float            r1,
         float            r2) {
@@ -495,59 +496,79 @@ namespace VCX::Labs::Project {
     std::vector<glm::vec2> ParsePoints(const char *s){
         auto numbers = ParseNumbers(s);
         if (numbers.size() % 2 != 0)
-            std::cerr << "ParsePoints: odd number of numbers in points string\n";
+            std::cerr << "ParsePoints: odd number of numbers in points string" << std::endl;
         std::vector<glm::vec2> points;
         for (int i = 0; i < numbers.size(); i += 2)
             points.push_back({numbers[i], numbers[i + 1]});
         return points;
     }
     
-    glm::vec4 GetColorFromHex(const char *s){
+    glm::vec3 GetRGBFromHex(const char *s){
         int r = std::stoi(std::string(s    , s + 2), 0, 16);
         int g = std::stoi(std::string(s + 2, s + 4), 0, 16);
         int b = std::stoi(std::string(s + 4, s + 6), 0, 16);
-        return {r / 255.0f, g / 255.0f, b / 255.0f, 1};
+        return {r / 255.0f, g / 255.0f, b / 255.0f};
     }
 
-    glm::vec4 GetColor(const char *s, const char *defaultColor){
-        if (s == NULL) s = defaultColor;
-        if (s == NULL) return glm::vec4(0);
+    glm::vec3 GetRGB(const char *s){
+        if (s == NULL) s = "black";
         if (s[0] == '#') {
             if (strlen(s) == 7){
                 bool ok = true;
                 for (int i = 1; i < 7; ++i)
                     if (!isxdigit((unsigned char)s[i]))
                         ok = false;
-                if (ok) return GetColorFromHex(s + 1);
+                if (ok) return GetRGBFromHex(s + 1);
             }
-            std::cerr << "GetColor: invalid color string\n";
-            return glm::vec4(0);
+            std::cerr << "GetRGB: invalid color string" << std::endl;
+            return glm::vec3(0);
+        }
+        else if (strncmp(s, "rgb", 3) == 0) {
+            auto c = ParseNumbers(s);
+            if (c.size() < 3){
+                std::cerr << "GetRGB: invalid color rgb string" << std::endl;
+                return glm::vec3(0);
+            }
+            return glm::vec3(c[0] / 255, c[1] / 255, c[2] / 255);
         }
         /* See https://developer.mozilla.org/en-US/docs/Web/CSS/named-color */
-        else if (strcmp(s, "black"  ) == 0) return GetColorFromHex("000000");
-        else if (strcmp(s, "silver" ) == 0) return GetColorFromHex("c0c0c0");
-        else if (strcmp(s, "gray"   ) == 0) return GetColorFromHex("808080");
-        else if (strcmp(s, "white"  ) == 0) return GetColorFromHex("ffffff");
-        else if (strcmp(s, "maroon" ) == 0) return GetColorFromHex("800000");
-        else if (strcmp(s, "red"    ) == 0) return GetColorFromHex("ff0000");
-        else if (strcmp(s, "purple" ) == 0) return GetColorFromHex("800080");
-        else if (strcmp(s, "fuchsia") == 0) return GetColorFromHex("ff00ff");
-        else if (strcmp(s, "green"  ) == 0) return GetColorFromHex("008000");
-        else if (strcmp(s, "lime"   ) == 0) return GetColorFromHex("00ff00");
-        else if (strcmp(s, "olive"  ) == 0) return GetColorFromHex("808000");
-        else if (strcmp(s, "yellow" ) == 0) return GetColorFromHex("ffff00");
-        else if (strcmp(s, "navy"   ) == 0) return GetColorFromHex("000080");
-        else if (strcmp(s, "blue"   ) == 0) return GetColorFromHex("0000ff");
-        else if (strcmp(s, "teal"   ) == 0) return GetColorFromHex("008080");
-        else if (strcmp(s, "aqua"   ) == 0) return GetColorFromHex("00ffff");
-        else if (strcmp(s, "orange" ) == 0) return GetColorFromHex("ffa500");
-
-        else if (strcmp(s, "transparent") == 0) return glm::vec4(0);
-        else if (strcmp(s, "none") == 0) return glm::vec4(0);
+        else if (strcmp(s, "black"  ) == 0) return GetRGBFromHex("000000");
+        else if (strcmp(s, "silver" ) == 0) return GetRGBFromHex("c0c0c0");
+        else if (strcmp(s, "gray"   ) == 0) return GetRGBFromHex("808080");
+        else if (strcmp(s, "white"  ) == 0) return GetRGBFromHex("ffffff");
+        else if (strcmp(s, "maroon" ) == 0) return GetRGBFromHex("800000");
+        else if (strcmp(s, "red"    ) == 0) return GetRGBFromHex("ff0000");
+        else if (strcmp(s, "purple" ) == 0) return GetRGBFromHex("800080");
+        else if (strcmp(s, "fuchsia") == 0) return GetRGBFromHex("ff00ff");
+        else if (strcmp(s, "green"  ) == 0) return GetRGBFromHex("008000");
+        else if (strcmp(s, "lime"   ) == 0) return GetRGBFromHex("00ff00");
+        else if (strcmp(s, "olive"  ) == 0) return GetRGBFromHex("808000");
+        else if (strcmp(s, "yellow" ) == 0) return GetRGBFromHex("ffff00");
+        else if (strcmp(s, "navy"   ) == 0) return GetRGBFromHex("000080");
+        else if (strcmp(s, "blue"   ) == 0) return GetRGBFromHex("0000ff");
+        else if (strcmp(s, "teal"   ) == 0) return GetRGBFromHex("008080");
+        else if (strcmp(s, "aqua"   ) == 0) return GetRGBFromHex("00ffff");
+        else if (strcmp(s, "orange" ) == 0) return GetRGBFromHex("ffa500");
         else {
-            std::cerr << "GetColor: invalid color string\n";
-            return {0, 0, 0, 0};
+            std::cerr << "GetRGB: invalid color string" << std::endl;
+            return glm::vec3(0);
         }
+    }
+    
+    glm::vec4 GetColor(const tinyxml2::XMLElement *ele, const char *attr) {
+        const char *color = ele->Attribute(attr);
+        if (!color){
+            if      (strcmp(attr, "stroke") == 0) color = "none";
+            else if (strcmp(attr, "fill"  ) == 0) color = "black";
+            else return glm::vec4(0);
+        }
+        if (strcmp(color, "transparent") == 0 || 
+            strcmp(color, "none"       ) == 0)
+            return glm::vec4(0);
+        return glm::vec4(
+            GetRGB(color),
+            ele->FloatAttribute((std::string(attr) + "-opacity").c_str(), 1)
+        );
     }
     
     void DivideBezier3(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {

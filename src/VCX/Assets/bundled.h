@@ -19,6 +19,7 @@ namespace VCX::Assets {
 
     inline constexpr auto ExampleSVGs {
         std::to_array<std::string_view>({
+            "assets/svgs/3.svg",
             "assets/svgs/Peking University.svg",
             "assets/svgs/Handwritten Text.svg",
             "assets/svgs/Score.svg",

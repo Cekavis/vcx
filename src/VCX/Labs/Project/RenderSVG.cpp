@@ -131,9 +131,12 @@ namespace VCX::Labs::Project {
         int n = points.size() - 1;
 
         /* Draw interior */
+        const char *fillRule = ele->Attribute("fill-rule");
+        int rule = 0;
+        if (fillRule && strcmp(fillRule, "evenodd") == 0) rule = 1;
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(color, {points});
+            _drawPolygonFilled(color, {points}, rule);
 
         /* Draw outline */
         color = GetColor(ele->Attribute("stroke"));
@@ -330,9 +333,12 @@ namespace VCX::Labs::Project {
             path.push_back(path[0]);
         }
 
+        const char *fillRule = ele->Attribute("fill-rule");
+        int rule = 0;
+        if (fillRule && strcmp(fillRule, "evenodd") == 0) rule = 1;
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            _drawPolygonFilled(color, paths);
+            _drawPolygonFilled(color, paths, rule);
         
         for (auto &path : paths){
             color = GetColor(ele->Attribute("stroke"));

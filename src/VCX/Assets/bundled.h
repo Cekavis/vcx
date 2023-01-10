@@ -24,6 +24,8 @@ namespace VCX::Assets {
             "assets/svgs/Handwritten Text.svg",
             "assets/svgs/Basic Shapes.svg",
             "assets/svgs/Arcs.svg",
+            "assets/svgs/Nonzero.svg",
+            "assets/svgs/Evenodd.svg",
         })
     };
 
@@ -33,5 +35,7 @@ namespace VCX::Assets {
         HandwrittenText,
         BasicShapes,
         Arcs,
+        Nonzero,
+        Evenodd,
     };
 }

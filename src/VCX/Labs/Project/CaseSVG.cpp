@@ -33,13 +33,15 @@ namespace VCX::Labs::Project {
             ImGui::EndCombo();
         }
         ImGui::Spacing();
+        _recompute |= ImGui::SliderInt("Scale", &_scale, 1, 3);
+        ImGui::Spacing();
 
         ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
-        std::uint32_t width = std::max(100, (int)desiredSize.first - 40);
-        std::uint32_t height = std::max(100, (int)desiredSize.second - 40);
+        std::uint32_t width = std::max(100, (int)desiredSize.first - 40) * _scale;
+        std::uint32_t height = std::max(100, (int)desiredSize.second - 40) * _scale;
         if (width != _windowWidth || height != _windowHeight) {
             _windowWidth = width;
             _windowHeight = height;
@@ -48,7 +50,7 @@ namespace VCX::Labs::Project {
 
         if (_recompute) {
             _recompute = false;
-            auto tex { Common::CreateCheckboardImageRGB(320, 320) };
+            auto tex { Common::CreatePureImageRGB(100, 100, { 1., 1., 1. }) };
 
             tinyxml2::XMLDocument doc;
             // std::cerr << "Loading SVG file: " << GetSVGName(_SVGIdx) << std::endl;
@@ -69,15 +71,27 @@ namespace VCX::Labs::Project {
                 }
             }
 
+            /* Downsampling */
+            width /= _scale, height /= _scale;
+            auto _tex { Common::CreatePureImageRGB(width, height, { 1., 1., 1. }) };
+            for (std::size_t i = 0; i < width; ++i)
+                for(std::size_t j = 0; j < height; ++j){
+                    glm::vec3 color(0);
+                    for (int x = 0; x < _scale; ++x)
+                        for (int y = 0; y < _scale; ++y)
+                            color += tex.GetAt({i * _scale + x, j * _scale + y});
+                    color /= _scale * _scale;
+                    _tex.SetAt({i, j}, color);
+                }
             gl_using(_texture);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex.GetBytes().data());
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, _tex.GetBytes().data());
             glGenerateMipmap(GL_TEXTURE_2D);
         }
 
         return Common::CaseRenderResult {
             .Fixed     = true,
             .Image     = _texture,
-            .ImageSize = { _width, _height }
+            .ImageSize = { _width / _scale, _height / _scale }
         };
     }
 
@@ -92,6 +106,6 @@ namespace VCX::Labs::Project {
         if (held && delta.y != 0.f)
             ImGui::SetScrollY(window, window->Scroll.y - delta.y);
         if (_enableZoom && ! held && ImGui::IsItemHovered())
-            Common::ImGuiHelper::ZoomTooltip(_texture, { _width, _height}, pos);
+            Common::ImGuiHelper::ZoomTooltip(_texture, { _width / _scale, _height / _scale}, pos);
     }
 }

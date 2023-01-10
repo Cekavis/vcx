@@ -25,6 +25,7 @@ namespace VCX::Labs::Project {
         Engine::GL::UniqueTexture2D _texture;
 
         int  _SVGIdx        = 0;
+        int  _scale         = 1;
         int  _windowWidth   = 0;
         int  _windowHeight  = 0;
         int  _width         = 0;

@@ -10,7 +10,7 @@ namespace VCX::Labs::Project {
 
     class CaseSVG : public Common::ICase {
     public:
-        CaseSVG(std::initializer_list<Assets::ExampleSVG> && SVGs);
+        CaseSVG();
 
         virtual std::string_view const GetName() override { return "Draw fixed images"; }
         
@@ -19,8 +19,6 @@ namespace VCX::Labs::Project {
         virtual void OnProcessInput(ImVec2 const & pos) override;
     
     private:
-
-        std::vector<Assets::ExampleSVG> _SVGs;
 
         Engine::GL::UniqueTexture2D _texture;
 

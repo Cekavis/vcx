@@ -172,11 +172,12 @@ namespace VCX::Labs::Project {
         std::vector<glm::vec2> path;
         static float bx = 0, by = 0; // for Bezier shortcuts
         char lastCommand = 0;
-        // std::cerr << "DrawPath" << std::endl;
         const char *s = ele->Attribute("d");
+        if (!s) return;
         int len = strlen(s);
+        // std::cerr << "DrawPath" << std::endl; 
         for (const char *i = s; i < s + len; i++) {
-            // printf("%c\n", *i);
+            // printf("%c%c%c\n", *i, *(i+1), *(i+2));
             char command = 0;
             if (!isspace(*i)) {
                 if (isalpha(*i)){
@@ -187,6 +188,7 @@ namespace VCX::Labs::Project {
                 }
                 else command = lastCommand;//, printf("[%c]", command);
             }
+            else continue;
             // if (command) std::cerr << "Command: " << command << std::endl;
             if (toupper(command) == 'M') {
                 auto p = ParseNumbers(i, 2);
@@ -231,6 +233,7 @@ namespace VCX::Labs::Project {
                 path.push_back({ x, y });
             }
             else if (toupper(command) == 'Z') {
+                --i;
                 if (path.empty()) return;
                 path.push_back(path[0]);
                 x = path[0].x;
@@ -320,12 +323,14 @@ namespace VCX::Labs::Project {
                 y = p[6];
                 path.push_back({ x, y });
             }
+            else ++i;
             // printf("[%.5f %.5f]\n", x, y);
         }
         if (!path.empty()) paths.push_back(path);
         
 
         for (auto &path : paths){
+            // std::cerr << path.size() << std::endl;
             // for (auto &p : path)
             //     std::cerr << p.x << " " << p.y << std::endl;
             if (path.empty()) return;
@@ -422,6 +427,7 @@ namespace VCX::Labs::Project {
         std::vector<glm::vec2> const p,
         float            width) {
         
+        if (p.size() < 2) return;
         std::vector<glm::vec2> points;
         for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.1f) {
             glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
@@ -461,11 +467,19 @@ namespace VCX::Labs::Project {
     std::vector<float> ParseNumbers(const char *&s, int n){
         std::vector<float> numbers;
         int pos = 0;
+        bool dot = 0;
         for (int i = 0;; ++i) {
-            if (!s[i] || std::string("0123456789.-+").find(s[i]) == std::string::npos || (s[i] == '-' && pos < i)) {
-                if (i != pos)
+            if (std::string("0123456789.-+").find(s[i]) == std::string::npos || ((s[i] == '-' || s[i]=='.') && pos < i)) {
+                bool o = dot;
+                if (s[i]!='.' && i != pos || dot){
+                    dot = 0;
                     numbers.push_back(std::stof(std::string(s + pos, s + i)));
-                pos = i + (s[i]!='-');
+                }
+                if (s[i]=='.'){
+                    dot = 1;
+                    if (o) pos = i;
+                }
+                else pos = i + (s[i]!='-');
             }
             if (!s[i] || numbers.size() == n){
                 s += i - 1;

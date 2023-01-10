@@ -9,8 +9,7 @@
 
 namespace VCX::Labs::Project {
 
-    CaseSVG::CaseSVG(std::initializer_list<Assets::ExampleSVG> && SVGs) {
-        _SVGs = SVGs;
+    CaseSVG::CaseSVG() {
         gl_using(_texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -21,7 +20,7 @@ namespace VCX::Labs::Project {
 
     void CaseSVG::OnSetupPropsUI() {
         if (ImGui::BeginCombo("SVG", GetSVGName(_SVGIdx).c_str())) {
-            for (std::size_t i = 0; i < _SVGs.size(); ++i) {
+            for (std::size_t i = 0; i < Assets::ExampleSVGs.size(); ++i) {
                 bool selected = i == _SVGIdx;
                 if (ImGui::Selectable(GetSVGName(i).c_str(), selected)) {
                     if (! selected) {

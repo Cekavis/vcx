@@ -71,20 +71,17 @@ namespace VCX::Labs::Project {
     }
 
     void DrawLine(const tinyxml2::XMLElement *ele) {
-        float x1, y1, x2, y2;
-        if (ele->QueryFloatAttribute("x1", &x1)) return;
-        if (ele->QueryFloatAttribute("y1", &y1)) return;
-        if (ele->QueryFloatAttribute("x2", &x2)) return;
-        if (ele->QueryFloatAttribute("y2", &y2)) return;
-        x1 /= ratio, y1 /= ratio, x2 /= ratio, y2 /= ratio;
+        glm::vec2 p1, p2;
+        if (ele->QueryFloatAttribute("x1", &p1.x)) return;
+        if (ele->QueryFloatAttribute("y1", &p1.y)) return;
+        if (ele->QueryFloatAttribute("x2", &p2.x)) return;
+        if (ele->QueryFloatAttribute("y2", &p2.y)) return;
+        p1 /= ratio, p2 /= ratio;
 
         glm::vec4 color = GetColor(ele->Attribute("stroke"));
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
-            if (width > 0)
-                _drawThickLine(color, { x1, y1 }, { x2, y2 }, width);
-            else
-                _drawLine(color, { x1, y1 }, { x2, y2 });
+            _drawPolyline(color, {p1, p2}, width);
     }
 
     void DrawRect(const tinyxml2::XMLElement *ele) {
@@ -109,10 +106,17 @@ namespace VCX::Labs::Project {
         color = GetColor(ele->Attribute("stroke"));
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0) {
-            _drawThickLine(color, { x - width, y }, { x + w + width, y }, width);
-            _drawThickLine(color, { x - width, y + h }, { x + w + width, y + h }, width);
-            _drawThickLine(color, { x + w, y }, { x + w, y + h }, width);
-            _drawThickLine(color, { x, y + h }, { x, y }, width);
+            _drawPolyline(color, std::vector<glm::vec2>({
+                {x, y},
+                {x + w, y},
+                {x + w, y + h},
+                {x, y + h},
+                {x, y}
+            }), width);
+            // _drawPolyline(color, { x - width, y }, { x + w + width, y }, width);
+            // _drawPolyline(color, { x - width, y + h }, { x + w + width, y + h }, width);
+            // _drawPolyline(color, { x + w, y }, { x + w, y + h }, width);
+            // _drawPolyline(color, { x, y + h }, { x, y }, width);
         }
     }
 
@@ -134,12 +138,10 @@ namespace VCX::Labs::Project {
         /* Draw outline */
         color = GetColor(ele->Attribute("stroke"));
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
-        if (color.a > 0)
-            for (int i = 0; i < n - isPolyline; i++)
-                if (width > 0)
-                    _drawThickLine(color, points[i], points[i + 1], width);
-                else
-                    _drawLine(color, points[i], points[i + 1]);
+        if (color.a > 0){
+            if (isPolyline) points.pop_back();
+            _drawPolyline(color, points, width);
+        }
     }
 
     void DrawCircle(const tinyxml2::XMLElement *ele) {
@@ -330,19 +332,15 @@ namespace VCX::Labs::Project {
 
         glm::vec4 color = GetColor(ele->Attribute("fill"), "black");
         if (color.a > 0)
-            // for (auto &path : paths)
-            //     _drawPolygonFilled(color, {path});
             _drawPolygonFilled(color, paths);
         
         for (auto &path : paths){
             color = GetColor(ele->Attribute("stroke"));
             float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
-            if (color.a > 0)
-                for (int i = 0; i < path.size() - 2; i++)
-                    if (width > 0)
-                        _drawThickLine(color, path[i], path[i + 1], width);
-                    else
-                        _drawLine(color, path[i], path[i + 1]);
+            if (color.a > 0){
+                path.pop_back();
+                _drawPolyline(color, path, width);
+            }
         }
     }
 
@@ -351,67 +349,6 @@ namespace VCX::Labs::Project {
         if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
         canvas->SetAt({(std::size_t)p.x, (std::size_t)p.y}, color);
     }
-
-    /* From Lab 1 */
-    void _drawLine(
-        glm::vec3 const  color,
-        glm::ivec2 const p0,
-        glm::ivec2 const p1) {
-
-        glm::ivec2 a = p0, b = p1;
-        bool swapXY = abs(a.x-b.x) < abs(a.y-b.y);
-        if (swapXY) {
-            std::swap(a.x, a.y);
-            std::swap(b.x, b.y);
-        }
-        if (a.x > b.x) std::swap(a, b);
-        bool flipY = a.y > b.y;
-        if (flipY) {
-            a.y = -a.y;
-            b.y = -b.y;
-        }
-        int y = a.y;
-        int dx = 2*(b.x-a.x), dy = 2*(b.y-a.y);
-        int dydx = dy-dx, F = dy-dx/2;
-        for (int x = a.x; x<=b.x; ++x){
-            int px = x, py = y;
-            if (flipY) py = -py;
-            if (swapXY) std::swap(px, py);
-            _draw({px, py}, color);
-
-            if (F<0) F+=dy;
-            else ++y, F += dydx;
-        }
-    }
-    
-    /* From Lab 1 */
-    // void _drawTriangleFilled(
-    //     glm::vec3 const  color,
-    //     glm::ivec2 const p0,
-    //     glm::ivec2 const p1,
-    //     glm::ivec2 const p2) {
-            
-    //     glm::ivec2 a = p0, b = p1, c = p2;
-    //     if (a.x > b.x) std::swap(a, b);
-    //     if (a.x > c.x) std::swap(a, c);
-    //     if ((b.x-a.x)*(c.y-a.y) < (c.x-a.x)*(b.y-a.y)) std::swap(b, c);
-    //     for (int x = a.x; x <= b.x || x <= c.x; ++x){
-    //         int yl, yr;
-    //         if (x <= b.x) {
-    //             if (b.x == a.x) yl = std::min(a.y, b.y);
-    //             else yl = (a.y*(b.x-a.x) + (b.y-a.y)*(x-a.x) + b.x-a.x-1) / (b.x-a.x); // ceil
-    //         }
-    //         else yl = (b.y*(c.x-b.x) + (c.y-b.y)*(x-b.x) + c.x-b.x-1) / (c.x-b.x); // ceil
-    //         if (x <= c.x) {
-    //             if (c.x == a.x) yr = std::max(a.y, c.y);
-    //             else yr = (a.y*(c.x-a.x) + (c.y-a.y)*(x-a.x)) / (c.x-a.x); // floor
-    //         }
-    //         else yr = (c.y*(b.x-c.x) + (b.y-c.y)*(x-c.x)) / (b.x-c.x); // floor
-    //         for (int y = yl; y<=yr; ++y)
-    //             if (0<=x && x < width)
-    //                 _draw({ x, y }, color);
-    //     }
-    // }
 
     void _drawPolygonFilled(
         glm::vec3 const                             color,
@@ -474,20 +411,23 @@ namespace VCX::Labs::Project {
         }
     }
 
-    void _drawThickLine(
+    void _drawPolyline(
         glm::vec3 const  color,
-        glm::vec2 const p0,
-        glm::vec2 const p1,
+        std::vector<glm::vec2> const p,
         float            width) {
         
-        if (glm::length(p1 - p0) < 0.1f) return;
         std::vector<glm::vec2> points;
-        glm::vec2 normal = glm::normalize(glm::vec2(p1.y - p0.y, p0.x - p1.x));
-        points.push_back(p0 + normal * width);
-        points.push_back(p0 - normal * width);
-        points.push_back(p1 - normal * width);
-        points.push_back(p1 + normal * width);
-        points.push_back(p0 + normal * width);
+        for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.1f) {
+            glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
+            points.push_back(p[i] + normal * width);
+            points.push_back(p[i+1] + normal * width);
+        }
+        for (int i = p.size() - 2; i >= 0; --i) if (glm::length(p[i+1]-p[i]) > 0.1f) {
+            glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
+            points.push_back(p[i+1] - normal * width);
+            points.push_back(p[i] - normal * width);
+        }
+        points.push_back(points[0]);
         _drawPolygonFilled(color, {points});
     }
 
@@ -640,9 +580,7 @@ namespace VCX::Labs::Project {
         p1 = Rotate(p1 - p0, -rotation);
         p1.x /= rx;
         p1.y /= ry;
-        // std::cerr << p1.x << " " << p1.y << std::endl;
         float xxyy = p1.x * p1.x + p1.y * p1.y;
-        // std::cerr << xxyy << std::endl;
         if (xxyy > 4) {
             float k = sqrt(xxyy) / 2;
             p1 /= k;
@@ -655,22 +593,18 @@ namespace VCX::Labs::Project {
         center.y = (p1.y + p1.x * sqrt((4 - xxyy) * xxyy) / xxyy) / 2;
         if ((largeArc == 1) ^ (sweep == 1) ^ (center.x * p1.y - center.y * p1.x < 0))
             center = p1 - center;
-        // std::cerr << center.x << " " << center.y << std::endl;
         std::vector<glm::vec2> p;
         float l = atan2(-center.y, -center.x);
         float r = atan2(p1.y - center.y, p1.x - center.x);
         if (sweep == 0) std::swap(l, r);
         if (l > r) r += 2 * acos(-1);
         if (sweep == 0) std::swap(l, r);
-        // std::cerr << l << ' ' << r << std::endl;
         DivideArc(center, l, r, p, ratio / (rx + ry));
         for (auto &v : p){
             v.x *= rx;
             v.y *= ry;
             v = Rotate(v, rotation) + p0;
             points.push_back(v);
-            // std::cerr << v.x << " " << v.y << std::endl;
         }
-        // puts("--------------------");
     }
 }

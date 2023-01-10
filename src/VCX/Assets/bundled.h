@@ -21,6 +21,7 @@ namespace VCX::Assets {
         std::to_array<std::string_view>({
             "assets/svgs/Peking University.svg",
             "assets/svgs/Handwritten Text.svg",
+            "assets/svgs/Score.svg",
             "assets/svgs/TikTok.svg",
             "assets/svgs/Twitter.svg",
             "assets/svgs/Google.svg",

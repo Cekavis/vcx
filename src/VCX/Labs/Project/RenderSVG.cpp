@@ -450,20 +450,28 @@ namespace VCX::Labs::Project {
 
     void _drawPolyline(
         glm::vec4 const  color,
-        std::vector<glm::vec2> const p,
+        std::vector<glm::vec2> p,
         float            width) {
         
         if (p.size() < 2) return;
         std::vector<glm::vec2> points;
-        for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.1f) {
-            glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
-            points.push_back(p[i] + normal * width);
-            points.push_back(p[i+1] + normal * width);
-        }
-        for (int i = p.size() - 2; i >= 0; --i) if (glm::length(p[i+1]-p[i]) > 0.1f) {
-            glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
-            points.push_back(p[i+1] - normal * width);
-            points.push_back(p[i] - normal * width);
+        // for (auto &i: p) std::cerr << i.x << " " << i.y << std::endl;
+        for (int _ = 0; _ < 2; ++_){
+            glm::vec2 prev(0);
+            bool first = true;
+            for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.001f) {
+                glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
+                if (!first && ((p[i].x - prev.x) * (p[i+1].y - prev.y) - (p[i].y - prev.y) * (p[i+1].x - prev.x) > 0)) {
+                    float alpha = acos(glm::dot(glm::normalize(p[i+1] - p[i]), glm::normalize(prev - p[i])));
+                    if (alpha > 0.01f)
+                        points.push_back(p[i] + normal * width - glm::normalize(p[i+1] - p[i]) * width / tan(alpha / 2));
+                }
+                points.push_back(p[i] + normal * width);
+                points.push_back(p[i+1] + normal * width);
+                first = false;
+                prev = p[i];
+            }
+            std::reverse(p.begin(), p.end());
         }
         points.push_back(points[0]);
         _drawPolygonFilled(color, {points});

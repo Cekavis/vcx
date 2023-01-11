@@ -85,39 +85,64 @@ namespace VCX::Labs::Project {
     }
 
     void DrawRect(const tinyxml2::XMLElement *ele) {
-        float x, y, w, h;
-        if (ele->QueryFloatAttribute("x", &x)) return;
-        if (ele->QueryFloatAttribute("y", &y)) return;
+        float x, y, w, h, rx, ry;
+        x = ele->FloatAttribute("x", 0);
+        y = ele->FloatAttribute("y", 0);
+        rx = ele->FloatAttribute("rx", -1);
+        ry = ele->FloatAttribute("ry", -1);
+        if (rx < 0) rx = ry;
+        if (ry < 0) ry = rx;
+        if (rx < 0) rx = ry = 0;
         if (ele->QueryFloatAttribute("width", &w)) return;
         if (ele->QueryFloatAttribute("height", &h)) return;
-        x /= ratio, y /= ratio, w /= ratio, h /= ratio;
 
-        /* Draw interior */
-        glm::vec4 color = GetColor(ele, "fill");
-        if (color.a > 0)
-            _drawPolygonFilled(color, {std::vector<glm::vec2>({
-                { x, y },
-                { x + w, y },
-                { x + w, y + h },
-                { x, y + h }
-            })});
+        // copy ele to a new element
+        tinyxml2::XMLDocument doc;
+        auto path = doc.NewElement("path");
+        for (auto s: {"stroke", "stroke-width", "fill", "fill-opacity", "stroke-opacity"})
+            if (ele->Attribute(s)) path->SetAttribute(s, ele->Attribute(s));
+        std::string d = "M " + std::to_string(x + w/2) + " " + std::to_string(y);
+        d += " h " + std::to_string(w/2 - rx);
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 0 1 " + std::to_string(rx) + " " + std::to_string(ry);
+        d += " v " + std::to_string(h - ry*2);
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 0 1 " + std::to_string(-rx) + " " + std::to_string(ry);
+        d += " h " + std::to_string(-w + rx*2);
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 0 1 " + std::to_string(-rx) + " " + std::to_string(-ry);
+        d += " v " + std::to_string(-h + ry*2);
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 0 1 " + std::to_string(rx) + " " + std::to_string(-ry);
+        d += " z";
+        path->SetAttribute("d", d.c_str());
+        DrawPath(path);
+
+        // x /= ratio, y /= ratio, w /= ratio, h /= ratio;
+
+        // /* Draw interior */
+        // glm::vec4 color = GetColor(ele, "fill");
+        // if (color.a > 0)
+        //     _drawPolygonFilled(color, {std::vector<glm::vec2>({
+        //         { x, y },
+        //         { x + w, y },
+        //         { x + w, y + h },
+        //         { x, y + h },
+        //         { x, y }
+        //     })});
         
-        /* Draw outline */
-        color = GetColor(ele, "stroke");
-        float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
-        if (color.a > 0) {
-            _drawPolyline(color, std::vector<glm::vec2>({
-                {x, y},
-                {x + w, y},
-                {x + w, y + h},
-                {x, y + h},
-                {x, y}
-            }), width);
-            // _drawPolyline(color, { x - width, y }, { x + w + width, y }, width);
-            // _drawPolyline(color, { x - width, y + h }, { x + w + width, y + h }, width);
-            // _drawPolyline(color, { x + w, y }, { x + w, y + h }, width);
-            // _drawPolyline(color, { x, y + h }, { x, y }, width);
-        }
+        // /* Draw outline */
+        // color = GetColor(ele, "stroke");
+        // float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
+        // if (color.a > 0) {
+        //     _drawPolyline(color, std::vector<glm::vec2>({
+        //         {x, y},
+        //         {x + w, y},
+        //         {x + w, y + h},
+        //         {x, y + h},
+        //         {x, y}
+        //     }), width);
+        //     // _drawPolyline(color, { x - width, y }, { x + w + width, y }, width);
+        //     // _drawPolyline(color, { x - width, y + h }, { x + w + width, y + h }, width);
+        //     // _drawPolyline(color, { x + w, y }, { x + w, y + h }, width);
+        //     // _drawPolyline(color, { x, y + h }, { x, y }, width);
+        // }
     }
 
     void DrawPolygon(const tinyxml2::XMLElement *ele, int isPolyline) {
@@ -617,6 +642,7 @@ namespace VCX::Labs::Project {
     }
 
     void CalcArc(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, float rx, float ry, float rotation, int largeArc, int sweep) {
+        if (rx == 0 || ry == 0) return;
         rotation = glm::radians(rotation);
         p1 = Rotate(p1 - p0, -rotation);
         p1.x /= rx;

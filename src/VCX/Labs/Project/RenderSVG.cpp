@@ -9,6 +9,44 @@ namespace VCX::Labs::Project {
     static glm::ivec2 view;
     static float width, height, ratio;
 
+    /* Main routine. Calculate image size and call _render() */
+    void render(ImageRGB &image, tinyxml2::XMLElement const *root, int &_width, int &_height) {
+        canvas = &image;
+        width = _width, height = _height;
+
+        glm::vec2 imgSize(0);
+        root->QueryFloatAttribute("width", &imgSize.x);
+        root->QueryFloatAttribute("height", &imgSize.y);
+
+        /* Calculate view box and adjust rendering resolution */
+        if (root->Attribute("viewBox")) {
+            auto viewbox = ParsePoints(root->Attribute("viewBox"));
+            auto size = viewbox[1];
+            if (imgSize.y == 0) imgSize = size;
+            float r = imgSize.x / imgSize.y;
+            if (size.x / size.y < r)
+                size.x = size.y * r;
+            else
+                size.y = size.x / r;
+            imgSize = size;
+        }
+        if (width / imgSize.x < height / imgSize.y)
+            height = ceil(width * imgSize.y / imgSize.x), ratio = imgSize.x / width;
+        else
+            width = ceil(height * imgSize.x / imgSize.y), ratio = imgSize.y / height;
+        if (root->Attribute("viewBox")) {
+            auto viewbox = ParsePoints(root->Attribute("viewBox"));
+            view = (viewbox[0] + viewbox[1] - imgSize) / 2.0f / ratio;
+        }
+        else view = {0, 0};
+
+        _width = width, _height = height;
+        image = Common::CreatePureImageRGB(width, height, { 1., 1., 1. });
+
+        _render(root);
+    }
+
+    /* Recursively render elements */
     void _render(tinyxml2::XMLElement const *ele){
         for (auto child = ele->FirstChildElement(); child != NULL; child = child->NextSiblingElement()) {
             if (child->Name() == std::string("g"))
@@ -23,52 +61,11 @@ namespace VCX::Labs::Project {
                 DrawPolygon(child);
             if (child->Name() == std::string("circle"))
                 DrawCircle(child);
+            if (child->Name() == std::string("ellipse"))
+                DrawEllipse(child);
             if (child->Name() == std::string("path"))
                 DrawPath(child);
         }
-    }
-
-    bool render(ImageRGB &image, tinyxml2::XMLElement const *root, int &_width, int &_height) {
-        canvas = &image;
-        width = _width, height = _height;
-
-        glm::vec2 imgSize(0);
-        root->QueryFloatAttribute("width", &imgSize.x);
-        root->QueryFloatAttribute("height", &imgSize.y);
-
-        /* Calculate view box */
-        if (root->Attribute("viewBox")) {
-            auto viewbox = ParsePoints(root->Attribute("viewBox"));
-            auto size = viewbox[1];
-            if (imgSize.y == 0) imgSize = size;
-            float r = imgSize.x / imgSize.y;
-            if (size.x / size.y < r)
-                size.x = size.y * r;
-            else
-                size.y = size.x / r;
-            imgSize = size;
-        }
-
-        /* Calculate screen size */
-        if (width / imgSize.x < height / imgSize.y)
-            height = ceil(width * imgSize.y / imgSize.x), ratio = imgSize.x / width;
-        else
-            width = ceil(height * imgSize.x / imgSize.y), ratio = imgSize.y / height;
-
-        if (root->Attribute("viewBox")) {
-            auto viewbox = ParsePoints(root->Attribute("viewBox"));
-            view = (viewbox[0] + viewbox[1] - imgSize) / 2.0f / ratio;
-        }
-        else view = {0, 0};
-
-        // std::cerr << view.x << " " << view.y << std::endl;
-        // std::cerr << imgSize.x << " " << imgSize.y << std::endl;
-
-        _width = width, _height = height;
-        image = Common::CreatePureImageRGB(width, height, { 1., 1., 1. });
-
-        _render(root);
-        return 1;
     }
 
     void DrawLine(const tinyxml2::XMLElement *ele) {
@@ -114,36 +111,6 @@ namespace VCX::Labs::Project {
         d += " z";
         path->SetAttribute("d", d.c_str());
         DrawPath(path);
-
-        // x /= ratio, y /= ratio, w /= ratio, h /= ratio;
-
-        // /* Draw interior */
-        // glm::vec4 color = GetColor(ele, "fill");
-        // if (color.a > 0)
-        //     _drawPolygonFilled(color, {std::vector<glm::vec2>({
-        //         { x, y },
-        //         { x + w, y },
-        //         { x + w, y + h },
-        //         { x, y + h },
-        //         { x, y }
-        //     })});
-        
-        // /* Draw outline */
-        // color = GetColor(ele, "stroke");
-        // float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
-        // if (color.a > 0) {
-        //     _drawPolyline(color, std::vector<glm::vec2>({
-        //         {x, y},
-        //         {x + w, y},
-        //         {x + w, y + h},
-        //         {x, y + h},
-        //         {x, y}
-        //     }), width);
-        //     // _drawPolyline(color, { x - width, y }, { x + w + width, y }, width);
-        //     // _drawPolyline(color, { x - width, y + h }, { x + w + width, y + h }, width);
-        //     // _drawPolyline(color, { x + w, y }, { x + w, y + h }, width);
-        //     // _drawPolyline(color, { x, y + h }, { x, y }, width);
-        // }
     }
 
     void DrawPolygon(const tinyxml2::XMLElement *ele, int isPolyline) {
@@ -190,6 +157,26 @@ namespace VCX::Labs::Project {
         float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
         if (color.a > 0)
             _drawCircle(color, { cx, cy }, r + width, r - width);
+    }
+    
+    void DrawEllipse(const tinyxml2::XMLElement *ele) {
+        float cx, cy, rx, ry;
+        if (ele->QueryFloatAttribute("cx", &cx)) return;
+        if (ele->QueryFloatAttribute("cy", &cy)) return;
+        if (ele->QueryFloatAttribute("rx", &rx)) return;
+        if (ele->QueryFloatAttribute("ry", &ry)) return;
+
+        std::cerr << cx << " " << cy << " " << rx << " " << ry << std::endl;
+
+        tinyxml2::XMLDocument doc;
+        auto path = doc.NewElement("path");
+        for (auto s: {"stroke", "stroke-width", "fill", "fill-opacity", "stroke-opacity"})
+            if (ele->Attribute(s)) path->SetAttribute(s, ele->Attribute(s));
+        std::string d = "M " + std::to_string(cx - rx) + " " + std::to_string(cy);
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 1 0 " + std::to_string(rx*2) + " 0";
+        d += " a " + std::to_string(rx) + " " + std::to_string(ry) + " 0 1 0 " + std::to_string(-rx*2) + " 0";
+        path->SetAttribute("d", d.c_str());
+        DrawPath(path);
     }
 
     void DrawPath(const tinyxml2::XMLElement *ele) {

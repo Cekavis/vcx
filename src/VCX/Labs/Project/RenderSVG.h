@@ -6,12 +6,14 @@
 using VCX::Labs::Common::ImageRGB;
 
 namespace VCX::Labs::Project {
-    bool render(ImageRGB &image, const tinyxml2::XMLElement *root, int &width, int &height);
+    void render(ImageRGB &image, const tinyxml2::XMLElement *root, int &width, int &height);
+    void _render(tinyxml2::XMLElement const *ele);
 
     void DrawLine(const tinyxml2::XMLElement *ele);
     void DrawRect(const tinyxml2::XMLElement *ele);
     void DrawPolygon(const tinyxml2::XMLElement *ele, int isPolyline = 0);
     void DrawCircle(const tinyxml2::XMLElement *ele);
+    void DrawEllipse(const tinyxml2::XMLElement *ele);
     void DrawPath(const tinyxml2::XMLElement *ele);
 
     void _drawPolygonFilled(glm::vec4, std::vector<std::vector<glm::vec2>> const &, int rule = 0);

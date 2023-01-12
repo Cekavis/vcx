@@ -38,7 +38,7 @@ namespace VCX::Labs::Project {
         ImGui::Spacing();
 
         std::string path = GetSVGName(_SVGIdx);
-        path = path.substr(0, path.length() - 4) + "-" + std::to_string(_width) + "x" + std::to_string(_height) + "-" + std::to_string(_time) + "ms.png";
+        path = path.substr(0, path.length() - 4) + "-" + std::to_string(_width) + "x" + std::to_string(_height) + "-" + "x" + std::to_string(_scale) + "-" + std::to_string(_time) + "ms.png";
         Common::ImGuiHelper::SaveImage(_texture, std::make_pair(_width, _height), path.c_str());
         ImGui::Spacing();
 
@@ -78,13 +78,10 @@ namespace VCX::Labs::Project {
             }
             else {
                 auto const * root = doc.FirstChildElement("svg");
-                if (!root) {
+                if (!root)
                     std::cerr << "Failed to find root element in SVG file: " << GetSVGName(_SVGIdx) << std::endl;
-                }
-                else {
-                    if (!render(tex, root, _width, _height))
-                        std::cerr << "Failed to render SVG file: " << GetSVGName(_SVGIdx) << std::endl;
-                }
+                else
+                    render(tex, root, _width, _height);
             }
             auto end = std::chrono::system_clock::now();
             _time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -124,6 +121,6 @@ namespace VCX::Labs::Project {
         if (held && delta.y != 0.f)
             ImGui::SetScrollY(window, window->Scroll.y - delta.y);
         if (_enableZoom && ! held && ImGui::IsItemHovered())
-            Common::ImGuiHelper::ZoomTooltip(_texture, { _width / _scale, _height / _scale}, pos);
+            Common::ImGuiHelper::ZoomTooltip(_texture, { _width, _height}, pos);
     }
 }

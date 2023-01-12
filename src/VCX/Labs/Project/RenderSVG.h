@@ -6,7 +6,7 @@
 using VCX::Labs::Common::ImageRGB;
 
 namespace VCX::Labs::Project {
-    bool render(ImageRGB &image, const tinyxml2::XMLElement *root, std::uint32_t &width, std::uint32_t &height);
+    bool render(ImageRGB &image, const tinyxml2::XMLElement *root, int &width, int &height);
 
     void DrawLine(const tinyxml2::XMLElement *ele);
     void DrawRect(const tinyxml2::XMLElement *ele);

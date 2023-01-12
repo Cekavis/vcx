@@ -27,7 +27,7 @@ namespace VCX::Labs::Project {
         }
     }
 
-    bool render(ImageRGB &image, tinyxml2::XMLElement const *root, std::uint32_t &_width, std::uint32_t &_height) {
+    bool render(ImageRGB &image, tinyxml2::XMLElement const *root, int &_width, int &_height) {
         canvas = &image;
         width = _width, height = _height;
 

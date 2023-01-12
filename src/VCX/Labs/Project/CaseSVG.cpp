@@ -37,11 +37,16 @@ namespace VCX::Labs::Project {
         _recompute |= ImGui::SliderInt("Scale", &_scale, 1, 3);
         ImGui::Spacing();
 
+        std::string path = GetSVGName(_SVGIdx);
+        path = path.substr(0, path.length() - 4) + "-" + std::to_string(_width) + "x" + std::to_string(_height) + "-" + std::to_string(_time) + "ms.png";
+        Common::ImGuiHelper::SaveImage(_texture, std::make_pair(_width, _height), path.c_str());
+        ImGui::Spacing();
+
         ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
         ImGui::Spacing();
 
 
-        ImGui::Text("Size: %dx%d", _width / _scale, _height / _scale);
+        ImGui::Text("Size: %dx%d", _width, _height);
         ImGui::Spacing();
         
         ImGui::Text("Rendering Time: %dms", _time);
@@ -50,8 +55,8 @@ namespace VCX::Labs::Project {
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
-        std::uint32_t width = std::max(100, (int)desiredSize.first - 40) * _scale;
-        std::uint32_t height = std::max(100, (int)desiredSize.second - 40) * _scale;
+        int width = std::max(100, (int)desiredSize.first - 40) * _scale;
+        int height = std::max(100, (int)desiredSize.second - 40) * _scale;
         if (width != _windowWidth || height != _windowHeight) {
             _windowWidth = width;
             _windowHeight = height;
@@ -60,6 +65,9 @@ namespace VCX::Labs::Project {
 
         if (_recompute) {
             _recompute = false;
+            _width = width;
+            _height = height;
+
             auto tex { Common::CreatePureImageRGB(100, 100, { 1., 1., 1. }) };
 
             auto start = std::chrono::system_clock::now();
@@ -74,21 +82,18 @@ namespace VCX::Labs::Project {
                     std::cerr << "Failed to find root element in SVG file: " << GetSVGName(_SVGIdx) << std::endl;
                 }
                 else {
-                    if (render(tex, root, width, height)) {
-                        _width = width;
-                        _height = height;
-                    }
-                    else std::cerr << "Failed to render SVG file: " << GetSVGName(_SVGIdx) << std::endl;
+                    if (!render(tex, root, _width, _height))
+                        std::cerr << "Failed to render SVG file: " << GetSVGName(_SVGIdx) << std::endl;
                 }
             }
             auto end = std::chrono::system_clock::now();
             _time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
             /* Downsampling */
-            width /= _scale, height /= _scale;
-            auto _tex { Common::CreatePureImageRGB(width, height, { 1., 1., 1. }) };
-            for (std::size_t i = 0; i < width; ++i)
-                for(std::size_t j = 0; j < height; ++j){
+            _width /= _scale, _height /= _scale;
+            auto _tex { Common::CreatePureImageRGB(_width, _height, { 1., 1., 1. }) };
+            for (std::size_t i = 0; i < _width; ++i)
+                for(std::size_t j = 0; j < _height; ++j){
                     glm::vec3 color(0);
                     for (int x = 0; x < _scale; ++x)
                         for (int y = 0; y < _scale; ++y)
@@ -97,14 +102,14 @@ namespace VCX::Labs::Project {
                     _tex.SetAt({i, j}, color);
                 }
             gl_using(_texture);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, _tex.GetBytes().data());
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, _width, _height, 0, GL_RGB, GL_UNSIGNED_BYTE, _tex.GetBytes().data());
             glGenerateMipmap(GL_TEXTURE_2D);
         }
 
         return Common::CaseRenderResult {
             .Fixed     = true,
             .Image     = _texture,
-            .ImageSize = { _width / _scale, _height / _scale }
+            .ImageSize = { _width, _height }
         };
     }
 

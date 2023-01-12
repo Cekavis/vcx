@@ -6,12 +6,19 @@
 #include "Engine/GL/resource.hpp"
 
 namespace VCX::Labs::Common::ImGuiHelper {
-	void TextCentered(std::string_view const text);
-	void ZoomTooltip(
-		Engine::GL::UniqueTexture2D const & tex,
-		std::pair<std::uint32_t, std::uint32_t> texSize,
-		ImVec2 const & pos,
-		bool const filpped = false,
-		float const regionSize = 40.f,
-		float const zoomLevel = 4.f);
+    void TextCentered(std::string_view const text);
+
+    void ZoomTooltip(
+        Engine::GL::UniqueTexture2D const & tex,
+        std::pair<std::uint32_t, std::uint32_t> texSize,
+        ImVec2 const & pos,
+        bool const filpped = false,
+        float const regionSize = 40.f,
+        float const zoomLevel = 4.f);
+
+    void SaveImage(
+        Engine::GL::UniqueTexture2D const &     tex,
+        std::pair<std::uint32_t, std::uint32_t> texSize,
+        const char *                            _path,
+        bool const                              flipped = false);
 }

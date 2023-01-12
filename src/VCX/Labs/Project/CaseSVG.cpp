@@ -72,7 +72,6 @@ namespace VCX::Labs::Project {
 
             auto start = std::chrono::system_clock::now();
             tinyxml2::XMLDocument doc;
-            // std::cerr << "Loading SVG file: " << GetSVGName(_SVGIdx) << std::endl;
             if (doc.LoadFile(std::filesystem::path(Assets::ExampleSVGs[_SVGIdx]).string().c_str())) {
                 std::cerr << "Failed to load SVG file: " << GetSVGName(_SVGIdx) << std::endl;
             }

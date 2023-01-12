@@ -68,6 +68,7 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Draw a <line> */
     void DrawLine(const tinyxml2::XMLElement *ele) {
         glm::vec2 p1, p2;
         if (ele->QueryFloatAttribute("x1", &p1.x)) return;
@@ -82,6 +83,7 @@ namespace VCX::Labs::Project {
             _drawPolyline(color, {p1, p2}, width);
     }
 
+    /* Draw a <rect> */
     void DrawRect(const tinyxml2::XMLElement *ele) {
         float x, y, w, h, rx, ry;
         x = ele->FloatAttribute("x", 0);
@@ -94,7 +96,7 @@ namespace VCX::Labs::Project {
         if (ele->QueryFloatAttribute("width", &w)) return;
         if (ele->QueryFloatAttribute("height", &h)) return;
 
-        // copy ele to a new element
+        /* Convert it to a <path> element */
         tinyxml2::XMLDocument doc;
         auto path = doc.NewElement("path");
         for (auto s: {"stroke", "stroke-width", "fill", "fill-opacity", "stroke-opacity"})
@@ -113,6 +115,7 @@ namespace VCX::Labs::Project {
         DrawPath(path);
     }
 
+    /* Draw a <polygon> */
     void DrawPolygon(const tinyxml2::XMLElement *ele, int isPolyline) {
         auto points = ParsePoints(ele->Attribute("points"));
         if (points.empty()){
@@ -140,6 +143,7 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Draw a <circle> */
     void DrawCircle(const tinyxml2::XMLElement *ele) {
         float cx, cy, r;
         if (ele->QueryFloatAttribute("cx", &cx)) return;
@@ -159,6 +163,7 @@ namespace VCX::Labs::Project {
             _drawCircle(color, { cx, cy }, r + width, r - width);
     }
     
+    /* Draw an <ellipse> */
     void DrawEllipse(const tinyxml2::XMLElement *ele) {
         float cx, cy, rx, ry;
         if (ele->QueryFloatAttribute("cx", &cx)) return;
@@ -166,8 +171,7 @@ namespace VCX::Labs::Project {
         if (ele->QueryFloatAttribute("rx", &rx)) return;
         if (ele->QueryFloatAttribute("ry", &ry)) return;
 
-        std::cerr << cx << " " << cy << " " << rx << " " << ry << std::endl;
-
+        /* Convert it to a <path> element */
         tinyxml2::XMLDocument doc;
         auto path = doc.NewElement("path");
         for (auto s: {"stroke", "stroke-width", "fill", "fill-opacity", "stroke-opacity"})
@@ -179,31 +183,33 @@ namespace VCX::Labs::Project {
         DrawPath(path);
     }
 
+    /* Draw a <path> */
     void DrawPath(const tinyxml2::XMLElement *ele) {
-        float x = 0, y = 0;
-        std::vector<std::vector<glm::vec2>> paths;
-        std::vector<glm::vec2> path;
-        static float bx = 0, by = 0; // for Bezier shortcuts
-        char lastCommand = 0;
+        float x = 0, y = 0;                         // current position
+        std::vector<std::vector<glm::vec2>> paths;  // all subpaths
+        std::vector<glm::vec2> path;                // current subpath
+        char prevCommand = 0;                       // previous command
+        float bx = 0, by = 0;                       // kept for Bézier command shortcuts
+
         const char *s = ele->Attribute("d");
         if (!s) return;
         int len = strlen(s);
-        // std::cerr << "DrawPath" << std::endl; 
+
         for (const char *i = s; i < s + len; i++) {
-            // printf("%c%c%c\n", *i, *(i+1), *(i+2));
+            /* Parse command */
             char command = 0;
             if (!isspace(*i)) {
                 if (isalpha(*i)){
                     command = *i++;
-                    lastCommand = command;
-                    if (command == 'M') lastCommand = 'L';
-                    if (command == 'm') lastCommand = 'l';
+                    prevCommand = command;
+                    if (command == 'M') prevCommand = 'L';
+                    if (command == 'm') prevCommand = 'l';
                 }
-                else command = lastCommand;//, printf("[%c]", command);
+                else command = prevCommand;
             }
             else continue;
-            // if (command) std::cerr << "Command: " << command << std::endl;
-            if (toupper(command) == 'M') {
+            
+            if (toupper(command) == 'M') { // move to
                 auto p = ParseNumbers(i, 2);
                 if (p.size() < 2) return;
                 if (command == 'm') {
@@ -219,7 +225,7 @@ namespace VCX::Labs::Project {
                 }
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'L') {
+            else if (toupper(command) == 'L') { // line to
                 auto p = ParseNumbers(i, 2);
                 if (p.size() < 2) return;
                 if (command == 'l') {
@@ -231,28 +237,28 @@ namespace VCX::Labs::Project {
                 }
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'H') {
+            else if (toupper(command) == 'H') { // horizontal line
                 auto p = ParseNumbers(i, 1);
                 if (p.size() < 1) return;
                 if (command == 'h') x += p[0];
                 else x = p[0];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'V') {
+            else if (toupper(command) == 'V') { // vertical line
                 auto p = ParseNumbers(i, 1);
                 if (p.size() < 1) return;
                 if (command == 'v') y += p[0];
                 else y = p[0];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'Z') {
+            else if (toupper(command) == 'Z') { // close path
                 --i;
                 if (path.empty()) return;
                 path.push_back(path[0]);
                 x = path[0].x;
                 y = path[0].y;
             }
-            else if (toupper(command) == 'C') {
+            else if (toupper(command) == 'C') { // cubic Bézier curve
                 auto p = ParseNumbers(i, 6);
                 if (p.size() < 6) return;
                 if (command == 'c') {
@@ -270,7 +276,7 @@ namespace VCX::Labs::Project {
                 y = p[5];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'S') {
+            else if (toupper(command) == 'S') { // smooth cubic Bézier curve
                 auto p = ParseNumbers(i, 4);
                 if (p.size() < 4) return;
                 if (command == 's') {
@@ -279,7 +285,7 @@ namespace VCX::Labs::Project {
                     p[2] += x;
                     p[3] += y;
                 }
-                if (toupper(lastCommand) == 'C' || toupper(lastCommand) == 'S')
+                if (toupper(prevCommand) == 'C' || toupper(prevCommand) == 'S')
                     bx = 2 * x - bx, by = 2 * y - by;
                 else
                     bx = x, by = y;
@@ -290,7 +296,7 @@ namespace VCX::Labs::Project {
                 y = p[3];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'Q') {
+            else if (toupper(command) == 'Q') { // quadratic Bézier curve
                 auto p = ParseNumbers(i, 4);
                 if (p.size() < 4) return;
                 if (command == 'q') {
@@ -306,14 +312,14 @@ namespace VCX::Labs::Project {
                 y = p[3];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'T') {
+            else if (toupper(command) == 'T') { // smooth quadratic Bézier curve
                 auto p = ParseNumbers(i, 2);
                 if (p.size() < 2) return;
                 if (command == 't') {
                     p[0] += x;
                     p[1] += y;
                 }
-                if (toupper(lastCommand) == 'Q' || toupper(lastCommand) == 'T')
+                if (toupper(prevCommand) == 'Q' || toupper(prevCommand) == 'T')
                     bx = 2 * x - bx, by = 2 * y - by;
                 else
                     bx = x, by = y;
@@ -324,7 +330,7 @@ namespace VCX::Labs::Project {
                 y = p[1];
                 path.push_back({ x, y });
             }
-            else if (toupper(command) == 'A') {
+            else if (toupper(command) == 'A') { // elliptical arc
                 auto p = ParseNumbers(i, 7);
                 if (p.size() < 7) return;
                 if (command == 'a') {
@@ -337,15 +343,11 @@ namespace VCX::Labs::Project {
                 path.push_back({ x, y });
             }
             else ++i;
-            // printf("[%.5f %.5f]\n", x, y);
         }
         if (!path.empty()) paths.push_back(path);
         
-
+        /* Scale and close path */
         for (auto &path : paths){
-            // std::cerr << path.size() << std::endl;
-            // for (auto &p : path)
-            //     std::cerr << p.x << " " << p.y << std::endl;
             if (path.empty()) return;
             for (auto &p : path) p /= ratio;
             path.push_back(path[0]);
@@ -370,18 +372,23 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Draw a pixel */
     void _draw(glm::ivec2 p, glm::vec4 color) {
+        /* Global offset from viewBox */
         p -= view;
+
         if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
         std::array<size_t, 2> P = {(std::size_t)p.x, (std::size_t)p.y};
         canvas->SetAt(P, glm::vec3(color) * color.a + canvas->GetAt(P) * (1 - color.a));
     }
 
+    /* Draw a few polygons with fill-rule specified */
     void _drawPolygonFilled(
         glm::vec4 const                             color,
         std::vector<std::vector<glm::vec2>> const & polygons,
         int                                         rule) {
 
+        /* Sort segments by x- and y-coordinates respectively */
         struct segment{
             glm::vec2 a, b;
             int k;
@@ -408,12 +415,12 @@ namespace VCX::Labs::Project {
             return segments[a].b.x < segments[b].b.x;
         });
 
+        /* Scanline */
         std::set<int> cur;
         int iL = 0, iR = 0;
 
         for (int x = view.x; x < view.x + width; ++x) {
-            if (rule == 0){
-                /* nonzero */
+            if (rule == 0){ // nonzero
                 std::vector<std::pair<float, int>> ys;
                 while (iL < n && segments[sortedL[iL]].a.x <= x)
                     cur.insert(sortedL[iL++]);
@@ -433,8 +440,7 @@ namespace VCX::Labs::Project {
                             _draw({ x, y }, color);
                 }
             }
-            else{
-                /* evenodd */
+            else{ // evenodd
                 std::vector<float> ys;
                 while (iL < n && segments[sortedL[iL]].a.x <= x)
                     cur.insert(sortedL[iL++]);
@@ -447,35 +453,34 @@ namespace VCX::Labs::Project {
                     ys.push_back(y);
                 }
                 std::sort(ys.begin(), ys.end());
-                // if (!ys.empty()){
-                //     for (int y: ys) printf("[%d]", y);
-                //     printf("\n");
-                // }
-                for (int i = 0; i < ys.size(); i += 2){
+                for (int i = 0; i < ys.size(); i += 2)
                     for (int y = ceil(ys[i]); y <= ys[i + 1]; ++y)
                         _draw({ x, y }, color);
-                    // if (ys[i+1] - ys[i] < 2)
-                    //     printf("[%.5f]\n", ys[i+1] - ys[i]);
-                }
             }
         }
     }
 
+    /* Draw a polyline with width */
     void _drawPolyline(
         glm::vec4 const  color,
         std::vector<glm::vec2> p,
         float            width) {
         
         if (p.size() < 2) return;
+
+        /* Special handling of close polylines */
         if (p[0] == p.back()) p.push_back(p[1]);
+
         std::vector<glm::vec2> points;
-        // for (auto &i: p) std::cerr << i.x << " " << i.y << std::endl;
+
+        /* A countour consists of two directions */
         for (int _ = 0; _ < 2; ++_){
             glm::vec2 prev(0);
             bool first = true;
-            for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.001f) {
+            for (int i = 0; i < p.size() - 1; ++i) if (glm::length(p[i+1]-p[i]) > 0.001f) { // skip zero-length segments
                 glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
                 if (!first && ((p[i].x - prev.x) * (p[i+1].y - prev.y) - (p[i].y - prev.y) * (p[i+1].x - prev.x) > 0)) {
+                    /* Miter joint */
                     float alpha = acos(glm::dot(glm::normalize(p[i+1] - p[i]), glm::normalize(prev - p[i])));
                     if (alpha > asin(0.25) * 2)
                         points.push_back(p[i] + normal * width - glm::normalize(p[i+1] - p[i]) * width / tan(alpha / 2));
@@ -491,6 +496,7 @@ namespace VCX::Labs::Project {
         _drawPolygonFilled(color, {points});
     }
 
+    /* Draw a ring with outer radius r1 and inner radius r2 */
     void _drawCircle(
         glm::vec4 const  color,
         glm::vec2 const  center,
@@ -512,6 +518,10 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /*
+     * Parse at most n float numbers from a string. This is hard because the
+     * string can be like 3-1.-4.2.75
+     */
     std::vector<float> ParseNumbers(const char *&s, int n){
         std::vector<float> numbers;
         int pos = 0;
@@ -534,12 +544,10 @@ namespace VCX::Labs::Project {
                 break;
             }
         }
-        // for (auto i: numbers)
-        //     printf("[%f]", i);
-        // printf("\n");
         return numbers;
     }
 
+    /* Parse a list of points from a string */
     std::vector<glm::vec2> ParsePoints(const char *s){
         auto numbers = ParseNumbers(s);
         if (numbers.size() % 2 != 0)
@@ -550,6 +558,7 @@ namespace VCX::Labs::Project {
         return points;
     }
     
+    /* Resolve #RRGGBB or #RGB */
     glm::vec3 GetRGBFromHex(const char *s){
         bool ok = true;
         for (int i = 0; s[i]; ++i)
@@ -566,6 +575,7 @@ namespace VCX::Labs::Project {
         return {r / 255.0f, g / 255.0f, b / 255.0f};
     }
 
+    /* Convert color string to color */
     glm::vec3 GetRGB(const char *s){
         if (s == NULL) s = "black";
         if (s[0] == '#') {
@@ -603,6 +613,7 @@ namespace VCX::Labs::Project {
         }
     }
     
+    /* Get color with alpha channel from an element */
     glm::vec4 GetColor(const tinyxml2::XMLElement *ele, const char *attr) {
         const char *color = ele->Attribute(attr);
         if (!color){
@@ -619,6 +630,7 @@ namespace VCX::Labs::Project {
         );
     }
     
+    /* Recursively divide a cubic Bézier curve */
     void DivideBezier3(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, glm::vec2 p3) {
         glm::vec2 p01 = (p0 + p1) * 0.5f;
         glm::vec2 p12 = (p1 + p2) * 0.5f;
@@ -634,6 +646,7 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Recursively divide a quadratic Bézier curve */
     void DivideBezier2(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, glm::vec2 p2) {
         glm::vec2 p01 = (p0 + p1) * 0.5f;
         glm::vec2 p12 = (p1 + p2) * 0.5f;
@@ -646,12 +659,14 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Rotate a vector */
     glm::vec2 Rotate(glm::vec2 p, float angle) {
         float c = cos(angle);
         float s = sin(angle);
         return {p.x * c - p.y * s, p.x * s + p.y * c};
     }
 
+    /* Recursively divide an arc */
     void DivideArc(glm::vec2 center, float l, float r, std::vector<glm::vec2> &p, float th){
         glm::vec2 p0 = {cos(l), sin(l)};
         glm::vec2 p1 = {cos(r), sin(r)};
@@ -664,6 +679,7 @@ namespace VCX::Labs::Project {
         }
     }
 
+    /* Resolve the parametric equation of the arc from the format of <path> */
     void CalcArc(std::vector<glm::vec2> &points, glm::vec2 p0, glm::vec2 p1, float rx, float ry, float rotation, int largeArc, int sweep) {
         if (rx == 0 || ry == 0) return;
         rotation = glm::radians(rotation);

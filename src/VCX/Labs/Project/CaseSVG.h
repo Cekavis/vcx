@@ -22,14 +22,15 @@ namespace VCX::Labs::Project {
 
         Engine::GL::UniqueTexture2D _texture;
 
-        int  _SVGIdx        = 0;
-        int  _scale         = 1;
-        int  _windowWidth   = 0;
-        int  _windowHeight  = 0;
-        int  _width         = 0;
-        int  _height        = 0;
-        bool _enableZoom    = true;
-        bool _recompute     = true;
+        int  _SVGIdx       = 0;
+        int  _scale        = 1;
+        int  _windowWidth  = 0;
+        int  _windowHeight = 0;
+        int  _width        = 0;
+        int  _height       = 0;
+        int  _time         = 0.0f;
+        bool _enableZoom   = true;
+        bool _recompute    = true;
 
         const std::string GetSVGName(std::size_t const i) const { return std::filesystem::path(Assets::ExampleSVGs[i]).filename().string(); }
     };

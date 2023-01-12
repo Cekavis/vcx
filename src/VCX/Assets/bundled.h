@@ -28,6 +28,7 @@ namespace VCX::Assets {
             "assets/svgs/Twitter.svg",
             "assets/svgs/Google.svg",
             "assets/svgs/Mandala.svg",
+            "assets/svgs/Girl.svg",
             "assets/svgs/Arcs.svg",
             "assets/svgs/Nonzero.svg",
             "assets/svgs/Evenodd.svg",

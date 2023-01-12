@@ -2,6 +2,7 @@
 #include <array>
 #include <iostream>
 #include <tinyxml2.h>
+#include <chrono>
 
 #include "Labs/Project/CaseSVG.h"
 #include "Labs/Common/ImGuiHelper.h"
@@ -32,10 +33,20 @@ namespace VCX::Labs::Project {
             ImGui::EndCombo();
         }
         ImGui::Spacing();
+
         _recompute |= ImGui::SliderInt("Scale", &_scale, 1, 3);
         ImGui::Spacing();
 
         ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
+        ImGui::Spacing();
+
+
+        ImGui::Text("Size: %dx%d", _width / _scale, _height / _scale);
+        ImGui::Spacing();
+        
+        ImGui::Text("Rendering Time: %dms", _time);
+        ImGui::Spacing();
+
     }
 
     Common::CaseRenderResult CaseSVG::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
@@ -51,6 +62,7 @@ namespace VCX::Labs::Project {
             _recompute = false;
             auto tex { Common::CreatePureImageRGB(100, 100, { 1., 1., 1. }) };
 
+            auto start = std::chrono::system_clock::now();
             tinyxml2::XMLDocument doc;
             // std::cerr << "Loading SVG file: " << GetSVGName(_SVGIdx) << std::endl;
             if (doc.LoadFile(std::filesystem::path(Assets::ExampleSVGs[_SVGIdx]).string().c_str())) {
@@ -69,6 +81,8 @@ namespace VCX::Labs::Project {
                     else std::cerr << "Failed to render SVG file: " << GetSVGName(_SVGIdx) << std::endl;
                 }
             }
+            auto end = std::chrono::system_clock::now();
+            _time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
             /* Downsampling */
             width /= _scale, height /= _scale;

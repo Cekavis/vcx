@@ -540,24 +540,25 @@ namespace VCX::Labs::Project {
     }
     
     glm::vec3 GetRGBFromHex(const char *s){
-        int r = std::stoi(std::string(s    , s + 2), 0, 16);
-        int g = std::stoi(std::string(s + 2, s + 4), 0, 16);
-        int b = std::stoi(std::string(s + 4, s + 6), 0, 16);
+        bool ok = true;
+        for (int i = 0; s[i]; ++i)
+            if (!isxdigit((unsigned char)s[i]))
+                ok = false;
+        if (!ok || (strlen(s) != 6 && strlen(s) != 3)){
+            std::cerr << "GetRGBFromHex error" << std::endl;
+            return glm::vec3(0);
+        }
+        int x = strlen(s) / 3;
+        int r = std::stoi(std::string(s      , s + x  ), 0, 16);
+        int g = std::stoi(std::string(s + x  , s + x*2), 0, 16);
+        int b = std::stoi(std::string(s + x*2, s + x*3), 0, 16);
         return {r / 255.0f, g / 255.0f, b / 255.0f};
     }
 
     glm::vec3 GetRGB(const char *s){
         if (s == NULL) s = "black";
         if (s[0] == '#') {
-            if (strlen(s) == 7){
-                bool ok = true;
-                for (int i = 1; i < 7; ++i)
-                    if (!isxdigit((unsigned char)s[i]))
-                        ok = false;
-                if (ok) return GetRGBFromHex(s + 1);
-            }
-            std::cerr << "GetRGB: invalid color string" << std::endl;
-            return glm::vec3(0);
+            return GetRGBFromHex(s + 1);
         }
         else if (strncmp(s, "rgb", 3) == 0) {
             auto c = ParseNumbers(s);

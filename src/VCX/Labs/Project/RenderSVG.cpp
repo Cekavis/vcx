@@ -363,6 +363,7 @@ namespace VCX::Labs::Project {
             path.push_back(path[0]);
         }
 
+        /* Draw Interior */
         const char *fillRule = ele->Attribute("fill-rule");
         int rule = 0;
         if (fillRule && strcmp(fillRule, "evenodd") == 0) rule = 1;
@@ -370,6 +371,7 @@ namespace VCX::Labs::Project {
         if (color.a > 0)
             _drawPolygonFilled(color, paths, rule);
         
+        /* Draw Outline */
         for (auto &path : paths){
             color = GetColor(ele, "stroke");
             float width = ele->FloatAttribute("stroke-width", 1) / ratio / 2;
@@ -454,6 +456,7 @@ namespace VCX::Labs::Project {
         float            width) {
         
         if (p.size() < 2) return;
+        if (p[0] == p.back()) p.push_back(p[1]);
         std::vector<glm::vec2> points;
         // for (auto &i: p) std::cerr << i.x << " " << i.y << std::endl;
         for (int _ = 0; _ < 2; ++_){
@@ -463,7 +466,7 @@ namespace VCX::Labs::Project {
                 glm::vec2 normal = glm::normalize(glm::vec2(p[i+1].y - p[i].y, p[i].x - p[i+1].x));
                 if (!first && ((p[i].x - prev.x) * (p[i+1].y - prev.y) - (p[i].y - prev.y) * (p[i+1].x - prev.x) > 0)) {
                     float alpha = acos(glm::dot(glm::normalize(p[i+1] - p[i]), glm::normalize(prev - p[i])));
-                    if (alpha > 0.01f)
+                    if (alpha > asin(0.25) * 2)
                         points.push_back(p[i] + normal * width - glm::normalize(p[i+1] - p[i]) * width / tan(alpha / 2));
                 }
                 points.push_back(p[i] + normal * width);

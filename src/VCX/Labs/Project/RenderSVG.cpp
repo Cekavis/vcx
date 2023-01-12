@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 
 #include "RenderSVG.h"
 
@@ -394,22 +395,48 @@ namespace VCX::Labs::Project {
         std::vector<std::vector<glm::vec2>> const & polygons,
         int                                         rule) {
 
+        struct segment{
+            glm::vec2 a, b;
+            int k;
+        };
+        std::vector<segment> segments;
+        for (auto const &polygon : polygons) {
+            int n = polygon.size() - 1;
+            for (int i = 0; i < n; ++i) {
+                segment s;
+                s.a = polygon[i];
+                s.b = polygon[i+1];
+                if (s.a.x > s.b.x) std::swap(s.a, s.b), s.k = -1;
+                else s.k = 1;
+                segments.push_back(s);
+            }
+        }
+        int n = segments.size();
+        std::vector<int> sortedL(n), sortedR(n);
+        for (int i = 0; i < n; ++i) sortedL[i] = sortedR[i] = i;
+        std::sort(sortedL.begin(), sortedL.end(), [&](int a, int b){
+            return segments[a].a.x < segments[b].a.x;
+        });
+        std::sort(sortedR.begin(), sortedR.end(), [&](int a, int b){
+            return segments[a].b.x < segments[b].b.x;
+        });
+
+        std::set<int> cur;
+        int iL = 0, iR = 0;
+
         for (int x = view.x; x < view.x + width; ++x) {
             if (rule == 0){
                 /* nonzero */
                 std::vector<std::pair<float, int>> ys;
-                for (auto const &polygon : polygons) {
-                    int n = polygon.size() - 1;
-                    for (int i = 0; i < n; ++i) {
-                        glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
-                        int t = 1;
-                        if (p0->x > p1->x) std::swap(p0, p1), t = -1;
-                        if (p0->x <= x && x < p1->x) {
-                            float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
-                            y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
-                            ys.emplace_back(y, t);
-                        }
-                    }
+                while (iL < n && segments[sortedL[iL]].a.x <= x)
+                    cur.insert(sortedL[iL++]);
+                while (iR < n && segments[sortedR[iR]].b.x <= x)
+                    cur.erase(sortedR[iR++]);
+                for (auto const &i : cur) {
+                    segment const &s = segments[i];
+                    float y = s.a.y + (s.b.y-s.a.y) * (x-s.a.x) / (s.b.x-s.a.x);
+                    y = std::max(std::min(s.a.y, s.b.y), std::min(std::max(s.a.y, s.b.y), y));
+                    ys.push_back({ y, s.k });
                 }
                 std::sort(ys.begin(), ys.end());
                 for (int i = 0, t = 0; i < ys.size(); ++i){
@@ -422,18 +449,15 @@ namespace VCX::Labs::Project {
             else{
                 /* evenodd */
                 std::vector<float> ys;
-                for (auto const &polygon : polygons) {
-                    int n = polygon.size() - 1;
-                    for (int i = 0; i < n; ++i) {
-                        glm::vec2 const *p0 = &polygon[i], *p1 = &polygon[(i+1)%n];
-                        if (p0->x > p1->x) std::swap(p0, p1);
-                        if (p0->x <= x && x < p1->x) {
-                            // float y = (p0->y*(p1->x-p0->x) + (p1->y-p0->y)*(x-p0->x) + p1->x-p0->x-1) / (p1->x-p0->x);
-                            float y = p0->y + (p1->y-p0->y) * (x-p0->x) / (p1->x-p0->x);
-                            y = std::max(std::min(p0->y, p1->y), std::min(std::max(p0->y, p1->y), y));
-                            ys.push_back(y);
-                        }
-                    }
+                while (iL < n && segments[sortedL[iL]].a.x <= x)
+                    cur.insert(sortedL[iL++]);
+                while (iR < n && segments[sortedR[iR]].b.x <= x)
+                    cur.erase(sortedR[iR++]);
+                for (auto const &i : cur) {
+                    segment const &s = segments[i];
+                    float y = s.a.y + (s.b.y-s.a.y) * (x-s.a.x) / (s.b.x-s.a.x);
+                    y = std::max(std::min(s.a.y, s.b.y), std::min(std::max(s.a.y, s.b.y), y));
+                    ys.push_back(y);
                 }
                 std::sort(ys.begin(), ys.end());
                 // if (!ys.empty()){

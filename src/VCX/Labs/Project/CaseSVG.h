@@ -12,7 +12,7 @@ namespace VCX::Labs::Project {
     public:
         CaseSVG();
 
-        virtual std::string_view const GetName() override { return "Draw fixed images"; }
+        virtual std::string_view const GetName() override { return "Draw SVG"; }
         
         virtual void OnSetupPropsUI() override;
         virtual Common::CaseRenderResult OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) override;

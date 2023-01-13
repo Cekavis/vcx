@@ -93,7 +93,7 @@ namespace VCX::Labs::Project {
                     glm::vec3 color(0);
                     for (int x = 0; x < _scale; ++x)
                         for (int y = 0; y < _scale; ++y)
-                            color += tex.GetAt({i * _scale + x, j * _scale + y});
+                            color += tex.GetAt({j * _scale + y, i * _scale + x});
                     color /= _scale * _scale;
                     _tex.SetAt({i, j}, color);
                 }

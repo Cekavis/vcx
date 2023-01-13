@@ -41,7 +41,7 @@ namespace VCX::Labs::Project {
         else view = {0, 0};
 
         _width = width, _height = height;
-        image = Common::CreatePureImageRGB(width, height, { 1., 1., 1. });
+        image = Common::CreatePureImageRGB(height, width, { 1., 1., 1. });
 
         _render(root);
     }
@@ -378,7 +378,7 @@ namespace VCX::Labs::Project {
         p -= view;
 
         if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
-        std::array<size_t, 2> P = {(std::size_t)p.x, (std::size_t)p.y};
+        std::array<size_t, 2> P = {(std::size_t)p.y, (std::size_t)p.x};
         canvas->SetAt(P, glm::vec3(color) * color.a + canvas->GetAt(P) * (1 - color.a));
     }
 

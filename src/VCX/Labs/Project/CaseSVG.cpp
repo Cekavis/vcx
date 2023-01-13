@@ -8,6 +8,8 @@
 #include "Labs/Common/ImGuiHelper.h"
 #include "Labs/Project/RenderSVG.h"
 
+// #define TEST_PERFORMANCE
+
 namespace VCX::Labs::Project {
 
     CaseSVG::CaseSVG() {
@@ -70,20 +72,42 @@ namespace VCX::Labs::Project {
 
             auto tex { Common::CreatePureImageRGB(100, 100, { 1., 1., 1. }) };
 
-            auto start = std::chrono::system_clock::now();
-            tinyxml2::XMLDocument doc;
-            if (doc.LoadFile(std::filesystem::path(Assets::ExampleSVGs[_SVGIdx]).string().c_str())) {
-                std::cerr << "Failed to load SVG file: " << GetSVGName(_SVGIdx) << std::endl;
+            auto f = [&](int idx, bool noDraw = false) {
+                auto start = std::chrono::system_clock::now();
+                tinyxml2::XMLDocument doc;
+                if (doc.LoadFile(std::filesystem::path(Assets::ExampleSVGs[idx]).string().c_str())) {
+                    std::cerr << "Failed to load SVG file: " << GetSVGName(idx) << std::endl;
+                }
+                else {
+                    auto const * root = doc.FirstChildElement("svg");
+                    if (!root)
+                        std::cerr << "Failed to find root element in SVG file: " << GetSVGName(idx) << std::endl;
+                    else
+                        render(tex, root, _width, _height, noDraw);
+                }
+                auto end = std::chrono::system_clock::now();
+                return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            };
+
+#ifdef TEST_PERFORMANCE
+            const int idxs[]        = {6, 1, 8};
+            const int resolutions[] = {256, 512, 768, 1024, 2048, 4096};
+            for (auto resolution : resolutions){
+                std::cout << resolution << " & ";
+                for (auto idx : idxs)
+                    for (int noDraw = 0; noDraw < 2; ++noDraw) {
+                        _width = _height = resolution * _scale;
+                        int sum = 0;
+                        for (int i = 0; i < 5; ++i)
+                            sum += f(idx, noDraw);
+                        std::cout << sum/5 << " & ";
+                    }
+                std::cout << std::endl;
             }
-            else {
-                auto const * root = doc.FirstChildElement("svg");
-                if (!root)
-                    std::cerr << "Failed to find root element in SVG file: " << GetSVGName(_SVGIdx) << std::endl;
-                else
-                    render(tex, root, _width, _height);
-            }
-            auto end = std::chrono::system_clock::now();
-            _time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            exit(0);
+#endif
+
+            _time = f(_SVGIdx);
 
             /* Downsampling */
             _width /= _scale, _height /= _scale;

@@ -8,11 +8,12 @@ namespace VCX::Labs::Project {
     static ImageRGB *canvas;
     static glm::ivec2 view;
     static float width, height, ratio;
+    static bool noDraw;
 
     /* Main routine. Calculate image size and call _render() */
-    void render(ImageRGB &image, tinyxml2::XMLElement const *root, int &_width, int &_height) {
+    void render(ImageRGB &image, tinyxml2::XMLElement const *root, int &_width, int &_height, bool _noDraw) {
         canvas = &image;
-        width = _width, height = _height;
+        width = _width, height = _height, noDraw = _noDraw;
 
         glm::vec2 imgSize(0);
         root->QueryFloatAttribute("width", &imgSize.x);
@@ -379,7 +380,8 @@ namespace VCX::Labs::Project {
 
         if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) return;
         std::array<size_t, 2> P = {(std::size_t)p.y, (std::size_t)p.x};
-        canvas->SetAt(P, glm::vec3(color) * color.a + canvas->GetAt(P) * (1 - color.a));
+        if (!noDraw)
+            canvas->SetAt(P, glm::vec3(color) * color.a + canvas->GetAt(P) * (1 - color.a));
     }
 
     /* Draw a few polygons with fill-rule specified */

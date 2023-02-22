@@ -8,7 +8,7 @@
 \usepackage{multirow}
 \usepackage{subcaption}
 \usepackage{graphicx}
-\usepackage[bottom=8em, top=8em]{geometry}
+\usepackage[bottom=6em, top=6em]{geometry}
 \usepackage{lmodern}
 \usepackage{listings}
 \usepackage[table]{xcolor}
@@ -23,6 +23,7 @@
 
 \title{《可视计算与交互概论》课程大作业报告}
 \author{屠学畅}
+\date{}
 
 \pagestyle{empty}
 
@@ -52,7 +53,7 @@
 
 我使用的方法是，枚举画布的每一列，计算该列与折线中的每条线段是否有交，如果有交则记录交点位置，将所有交点位置排序后就容易得到哪些区间是需要填充的了。这里根据 \texttt{fill-rule} 选项有两种不同的规则 \texttt{evenodd} 和 \texttt{nonzero}，但在实现上不存在本质区别。
 
-为了优化运行效率，应当避免无效的枚举，因此我使用了扫描线的方法，极大提升了速度。
+为了优化运行效率，应当避免无效的枚举，因此我使用了扫描线的方法，使用 \texttt{std::set} 动态地维护与当前枚举的列相交的线段集合，极大提升了速度。
 
 \subsection{折线的轮廓}
 
@@ -64,7 +65,7 @@
     \item 项目在课程 Lab 框架的基础上实现。
     \item 以上的绘制过程中只考虑了像素在或不在区域内两种情况，会出现锯齿，我实现了超采样的方法，可以选择以两倍或三倍尺寸渲染，再将若干像素平均，可以较好地避免锯齿的出现。但是这样会大大增加运行时间。
     \item 在 UI 中显示了分辨率和渲染用时。
-    \item 实现了带α通道的颜色叠加。
+    \item 实现了带 $\alpha$ 通道的颜色叠加。
     \item 列优先的渲染顺序缓存不友好，因此我翻转了渲染时的画布，在降采样阶段再翻转回来。
     \item 在曲线的绘制中，求出参数方程的形式后，取出中点对于两段曲线递归细分，直到端点距离近到无法在当前渲染的精度下分辨为止。
     \item 实现了矩形 \texttt{rect} 的圆角效果。
@@ -77,7 +78,7 @@
 
 \section{编译环境}
 
-与 Lab 框架一致，增加了 TinyXML2 库（Xmake 有收录）。
+与 Lab 框架一致，增加了 TinyXML2 库（Xmake 有收录）。可以使用 \texttt{xmake} 进行编译，使用 \texttt{xmake run project} 运行。
 
 \section{测试样例展示}
 
@@ -87,7 +88,7 @@
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.8\textwidth}
+    \begin{subfigure}[b]{0.9\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Screenshot.png}
         \caption{UI}
@@ -115,37 +116,37 @@
         \caption{Score: \\$1024 \times 516$ $(\times 3)$, 150ms}
     \end{subfigure}
     \par\bigskip
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/TikTok-1024x298-x2-14ms.png}
         \caption{TikTok: \\$1024 \times 298$ $(\times 2)$, 14ms}
     \end{subfigure}
     \hfill
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Google-1024x346-x2-21ms.png}
         \caption{Google: \\$1024 \times 346$ $(\times 2)$, 21ms}
     \end{subfigure}
     \par\bigskip
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Microsoft-1024x218-x2-15ms.png}
         \caption{Microsoft: \\$1024 \times 218$ $(\times 2)$, 15ms}
     \end{subfigure}
     \hfill
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Handwritten Text-1024x398-x2-15ms.png}
         \caption{Handwritten Text: \\$1024 \times 398$ $(\times 2)$, 15ms}
     \end{subfigure}
     \par\bigskip
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Evenodd-1024x384-x2-17ms.png}
         \caption{Evenodd: \\$1024 \times 384$ $(\times 2)$, 17ms}
     \end{subfigure}
     \hfill
-    \begin{subfigure}[b]{0.4\textwidth}
+    \begin{subfigure}[b]{0.45\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Nonzero-1024x384-x2-17ms.png}
         \caption{Nonzero: \\$1024 \times 384$ $(\times 2)$, 17ms}
@@ -167,13 +168,13 @@
         \caption{Girl: \\$761 \times 1024$ $(\times 2)$, 111ms}
     \end{subfigure}
     \par\bigskip
-    \begin{subfigure}[b]{0.3\textwidth}
+    \begin{subfigure}[b]{0.4\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Arcs-1024x1024-x2-19ms.png}
         \caption{Arcs: \\$1024 \times 1024$ $(\times 2)$, 19ms}
     \end{subfigure}
     \hfill
-    \begin{subfigure}[b]{0.3\textwidth}
+    \begin{subfigure}[b]{0.4\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/Twitter-1024x842-x2-55ms.png}
         \caption{Twitter: \\$1024 \times 842$ $(\times 2)$, 55ms}
